@@ -1,0 +1,22 @@
+{
+	"name": "@claude-code-best/calligraphy-lms",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "硬笔书法教学管理系统 — 课程推荐、排课、学生/教师/课程管理、学习进度、教学进度",
+	"scripts": {
+		"server": "bun run --watch server/index.ts",
+		"dev:web": "cd web && bunx vite",
+		"build:web": "cd web && bunx vite build",
+		"typecheck": "tsc --noEmit",
+		"precheck": "bun run typecheck && bun run check:fix",
+		"check:fix": "biome check --fix ."
+	},
+	"dependencies": {
+		"hono": "^4.12.15"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"typescript": "^5.7.0"
+	}
+}
