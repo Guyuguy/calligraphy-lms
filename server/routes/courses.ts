@@ -99,6 +99,9 @@ coursesRouter.post(
 		if (!(file instanceof File)) {
 			return c.json({ error: "no_file", message: "未提供文件" }, 400);
 		}
+		if (file.size === 0) {
+			return c.json({ error: "empty_file", message: "文件为空" }, 400);
+		}
 
 		const buf = new Uint8Array(await file.arrayBuffer());
 		const result = await parseCourseFile(file.name, buf);

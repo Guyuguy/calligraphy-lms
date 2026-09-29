@@ -431,8 +431,7 @@ function parseXlsx(buf: Uint8Array): ParseResult {
 				title: unitTitle,
 				type: typeStr as UnitType,
 				durationMinutes: colNum(row, "unitDurationMinutes", "单元时长", 30),
-				description:
-					colStr(row, "unitDescription", "单元描述") || undefined,
+				description: colStr(row, "unitDescription", "单元描述") || undefined,
 			});
 		}
 	}
