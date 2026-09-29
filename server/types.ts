@@ -103,6 +103,9 @@ export interface Unit {
 	order: number;
 	durationMinutes: number;
 	completionCriteria: CompletionCriteria;
+	videoUrl?: string; // 视频单元的播放地址（/api/courses/.../video/...）
+	videoMime?: string; // 视频 MIME 类型
+	videoSize?: number; // 视频字节大小
 }
 
 export interface Module {
@@ -247,6 +250,8 @@ export interface Annotation {
 	type: "circle" | "arrow" | "text";
 	content: string;
 	authorId: string;
+	size?: number; // 相对画布宽度的百分比，默认 10
+	angle?: number; // 箭头旋转角度（度），0 = 向右
 }
 
 // ============================================================

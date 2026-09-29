@@ -45,6 +45,16 @@ export const annotations = new Map<string, Annotation>();
 export const evaluations = new Map<string, Evaluation>();
 export const notifications = new Map<string, Notification>();
 export const payments = new Map<string, Payment>();
+export const audioRecords = new Map<
+	string,
+	{ mime: string; data: Uint8Array }
+>();
+
+// 视频文件存储（MVP 内存存储，生产环境应使用对象存储/文件系统）
+export const videoRecords = new Map<
+	string,
+	{ mime: string; data: Uint8Array; courseId: string; unitId: string }
+>();
 
 // ============================================================
 // 工具

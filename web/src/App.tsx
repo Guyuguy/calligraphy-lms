@@ -5,6 +5,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { CourseDetail } from "@/pages/courses/CourseDetail";
 import { CourseList } from "@/pages/courses/CourseList";
 import { CourseRecommend } from "@/pages/courses/CourseRecommend";
+import { UnitPlayer } from "@/pages/courses/UnitPlayer";
 import { Dashboard } from "@/pages/Dashboard";
 import { Login } from "@/pages/Login";
 import { Notifications } from "@/pages/notifications/Notifications";
@@ -116,6 +117,17 @@ function Router({ path, user, navigate }: RouterProps) {
 				navigate={navigate}
 			/>
 		);
+	if (path.startsWith("/learn/")) {
+		const parts = path.slice("/learn/".length).split("/");
+		return (
+			<UnitPlayer
+				courseId={parts[0]}
+				unitId={parts[1] ?? ""}
+				user={user}
+				navigate={navigate}
+			/>
+		);
+	}
 	if (path === "/students")
 		return <StudentList user={user} navigate={navigate} />;
 	if (path.startsWith("/students/"))

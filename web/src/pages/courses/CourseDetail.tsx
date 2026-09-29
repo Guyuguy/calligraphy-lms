@@ -4,6 +4,7 @@ import {
 	CheckCircle2,
 	FileText,
 	HelpCircle,
+	Pencil,
 	PenTool,
 	PlayCircle,
 	Star,
@@ -19,6 +20,7 @@ import {
 	type TeacherProfile,
 	type User,
 } from "@/api/client";
+import { CourseEditor } from "@/components/domain/CourseEditor";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,8 +72,14 @@ export function CourseDetail({ id, user, navigate }: CourseDetailProps) {
 	const [teacherProfile, setTeacherProfile] = useState<TeacherProfile | null>(
 		null,
 	);
+	const [editorOpen, setEditorOpen] = useState(false);
 
-	useEffect(() => {
+	const canManage =
+		user.role === "admin" ||
+		user.role === "academic_head" ||
+		user.role === "teacher";
+
+	const loadCourse = () => {
 		api
 			.get<{
 				course: Course;
@@ -83,6 +91,10 @@ export function CourseDetail({ id, user, navigate }: CourseDetailProps) {
 				setTeacher(r.teacher);
 				setTeacherProfile(r.teacherProfile);
 			});
+	};
+
+	useEffect(() => {
+		loadCourse();
 	}, [id]);
 
 	if (!course) {
@@ -100,10 +112,18 @@ export function CourseDetail({ id, user, navigate }: CourseDetailProps) {
 			title={course.title}
 			description={course.audience}
 			actions={
-				<Button variant="outline" onClick={() => navigate("/courses")}>
-					<ArrowLeft className="size-4" />
-					返回列表
-				</Button>
+				<div className="flex gap-2">
+					<Button variant="outline" onClick={() => navigate("/courses")}>
+						<ArrowLeft className="size-4" />
+						返回列表
+					</Button>
+					{canManage && (
+						<Button onClick={() => setEditorOpen(true)}>
+							<Pencil className="size-4" />
+							编辑课程
+						</Button>
+					)}
+				</div>
 			}
 		>
 			<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -173,19 +193,50 @@ export function CourseDetail({ id, user, navigate }: CourseDetailProps) {
 									<div className="divide-y divide-border">
 										{m.units.map((u) => {
 											const Icon = UNIT_TYPE_ICONS[u.type] ?? BookOpen;
+											const isVideo = u.type === "video" && u.videoUrl;
+											const clickable = isVideo;
 											return (
 												<div
 													key={u.id}
-													className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-2"
+													className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${
+														clickable
+															? "cursor-pointer hover:bg-surface-2"
+															: ""
+													}`}
+													onClick={() =>
+														clickable &&
+														navigate(`/learn/${course.id}/${u.id}`)
+													}
+													onKeyDown={(e) => {
+														if (clickable && (e.key === "Enter" || e.key === " ")) {
+															e.preventDefault();
+															navigate(`/learn/${course.id}/${u.id}`);
+														}
+													}}
+													role={clickable ? "button" : undefined}
+													tabIndex={clickable ? 0 : undefined}
 												>
-													<Icon className="size-4 text-text-muted" />
+													<Icon
+														className={`size-4 ${
+															isVideo ? "text-brand" : "text-text-muted"
+														}`}
+													/>
 													<div className="flex-1">
 														<div className="text-sm">{u.title}</div>
 														<div className="text-xs text-text-muted">
 															{UNIT_TYPE_LABELS[u.type]} · {u.durationMinutes}{" "}
 															分钟
+															{u.type === "video" &&
+																!u.videoUrl &&
+																(canManage ? " · 未上传视频" : "")}
 														</div>
 													</div>
+													{isVideo && (
+														<Badge variant="info" className="shrink-0">
+															<PlayCircle className="size-3" />
+															观看
+														</Badge>
+													)}
 													{user.role === "student" && (
 														<CheckCircle2 className="size-4 text-text-muted opacity-0" />
 													)}
@@ -277,6 +328,19 @@ export function CourseDetail({ id, user, navigate }: CourseDetailProps) {
 					)}
 				</div>
 			</div>
+
+			{canManage && (
+				<CourseEditor
+					open={editorOpen}
+					onOpenChange={setEditorOpen}
+					user={user}
+					existing={course}
+					onSaved={() => {
+						setEditorOpen(false);
+						loadCourse();
+					}}
+				/>
+			)}
 		</PageContainer>
 	);
 }

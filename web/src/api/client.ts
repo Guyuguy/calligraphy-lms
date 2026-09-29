@@ -26,9 +26,10 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+	const incomingHeaders = (init?.headers as Record<string, string>) ?? {};
 	const headers: Record<string, string> = {
 		"Content-Type": "application/json",
-		...((init?.headers as Record<string, string>) ?? {}),
+		...incomingHeaders,
 	};
 	const token = getStoredToken();
 	if (token) headers.Authorization = `Bearer ${token}`;
@@ -58,6 +59,48 @@ export const api = {
 			body: body ? JSON.stringify(body) : undefined,
 		}),
 	del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+	patch: <T>(path: string, body?: unknown) =>
+		request<T>(path, {
+			method: "PATCH",
+			body: body ? JSON.stringify(body) : undefined,
+		}),
+	postAudio: <T>(path: string, blob: Blob) =>
+		request<T>(path, {
+			method: "POST",
+			body: blob,
+			headers: { "Content-Type": blob.type || "audio/webm" },
+		}),
+	getAudioBlob: async (path: string): Promise<string> => {
+		const headers: Record<string, string> = {};
+		const token = getStoredToken();
+		if (token) headers.Authorization = `Bearer ${token}`;
+		const res = await fetch(`${BASE}${path}`, { headers });
+		if (!res.ok) {
+			throw new ApiError(res.status, `HTTP ${res.status}`);
+		}
+		const blob = await res.blob();
+		return URL.createObjectURL(blob);
+	},
+	postVideo: <T>(path: string, blob: Blob) =>
+		request<T>(path, {
+			method: "POST",
+			body: blob,
+			headers: { "Content-Type": blob.type || "video/mp4" },
+		}),
+	// 视频流式播放：用 blob URL 让 <video> 能带 Range 请求
+	// 注意：fetch 整个 blob 会丢失 Range 流式优势，但 MVP 内存存储可接受
+	// 如需真正的流式播放，可直接用 src=/api/... 但要带 token，故用 blob URL
+	getVideoBlob: async (path: string): Promise<string> => {
+		const headers: Record<string, string> = {};
+		const token = getStoredToken();
+		if (token) headers.Authorization = `Bearer ${token}`;
+		const res = await fetch(`${BASE}${path}`, { headers });
+		if (!res.ok) {
+			throw new ApiError(res.status, `HTTP ${res.status}`);
+		}
+		const blob = await res.blob();
+		return URL.createObjectURL(blob);
+	},
 };
 
 // ============================================================
@@ -146,6 +189,9 @@ export interface Unit {
 		minSubmissions?: number;
 		minQuizScore?: number;
 	};
+	videoUrl?: string;
+	videoMime?: string;
+	videoSize?: number;
 }
 
 export interface Module {
@@ -448,6 +494,8 @@ export interface Annotation {
 	type: AnnotationType;
 	content: string;
 	authorId: string;
+	size?: number; // 相对画布宽度的百分比，默认 10
+	angle?: number; // 箭头旋转角度（度），0 = 向右
 }
 
 export interface SubmissionDetailFull {

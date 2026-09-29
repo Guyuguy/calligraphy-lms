@@ -5,7 +5,6 @@ import {
 	FileText,
 	GitCompare,
 	PenTool,
-	Play,
 	Star,
 	TrendingUp,
 	Users,
@@ -31,6 +30,7 @@ import {
 	type User,
 } from "@/api/client";
 import { AnnotationCanvas } from "@/components/domain/AnnotationCanvas";
+import { AudioRecorder } from "@/components/domain/AudioRecorder";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -93,6 +93,7 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 		useState<AnnotationType>("circle");
 	const [annotationContent, setAnnotationContent] = useState("");
 	const [audioUrl, setAudioUrl] = useState("");
+	const [audioUploading, setAudioUploading] = useState(false);
 	const [detailLoading, setDetailLoading] = useState(false);
 
 	const isTeacher =
@@ -175,7 +176,12 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 			setSubmissionDetail(detail);
 			setVersions(vers.versions);
 			if (detail.submission.teacherAudioUrl) {
-				setAudioUrl(detail.submission.teacherAudioUrl);
+				// 服务器返回的是 /api/submissions/.../audio/...，前端需要可播放的 URL
+				// 用带 token 的 fetch 拿到 blob，转 object URL
+				const playable = await api.getAudioBlob(
+					detail.submission.teacherAudioUrl.replace(/^\/api/, ""),
+				);
+				setAudioUrl(playable);
 			}
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "加载提交详情失败");
@@ -184,12 +190,19 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 		}
 	};
 
-	const addAnnotation = async (x: number, y: number) => {
-		if (!reviewing || !annotationContent.trim()) return;
+	const addAnnotation = async (
+		x: number,
+		y: number,
+		type: AnnotationType,
+		options?: { size?: number; angle?: number },
+	) => {
+		if (!reviewing) return;
+		// 所有类型都允许空内容
+		const content = annotationContent.trim();
 		try {
 			const res = await api.post<{ ok: boolean; annotation: Annotation }>(
 				`/submissions/${reviewing.id}/annotations`,
-				{ x, y, type: annotationType, content: annotationContent },
+				{ x, y, type, content, ...options },
 			);
 			if (submissionDetail) {
 				setSubmissionDetail({
@@ -203,7 +216,7 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 					},
 				});
 			}
-			setAnnotationContent("");
+			// 保留内容，方便连续标注同类型；如需清空可手动清
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "添加标注失败");
 		}
@@ -240,7 +253,14 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 			setSubmissionDetail(detail);
 			setReviewScore(detail.submission.score ?? 80);
 			setReviewComment(detail.submission.teacherComment ?? "");
-			setAudioUrl(detail.submission.teacherAudioUrl ?? "");
+			if (detail.submission.teacherAudioUrl) {
+				const playable = await api.getAudioBlob(
+					detail.submission.teacherAudioUrl.replace(/^\/api/, ""),
+				);
+				setAudioUrl(playable);
+			} else {
+				setAudioUrl("");
+			}
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "切换版本失败");
 		} finally {
@@ -248,15 +268,45 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 		}
 	};
 
+	const handleAudioRecorded = async (blob: Blob) => {
+		if (!reviewing) return;
+		setAudioUploading(true);
+		setError(null);
+		try {
+			await api.postAudio<{ ok: boolean; audioUrl: string }>(
+				`/submissions/${reviewing.id}/audio`,
+				blob,
+			);
+			// 上传成功后用本地 blob 创建可播放 URL（避免带 token 的 fetch 问题）
+			setAudioUrl(URL.createObjectURL(blob));
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "音频上传失败");
+		} finally {
+			setAudioUploading(false);
+		}
+	};
+
 	const submitReview = async () => {
 		if (!reviewing || !selectedVersionId) return;
 		setSubmitting(true);
 		try {
-			await api.post(`/teaching/submissions/${selectedVersionId}/review`, {
+			// teacherAudioUrl 已在上传音频时由服务器写入提交记录。
+			// 这里只在用户清除了录音时显式传空串覆盖；否则不传，保留服务器值。
+			const payload: {
+				score: number;
+				teacherComment: string;
+				teacherAudioUrl?: string;
+			} = {
 				score: reviewScore,
 				teacherComment: reviewComment,
-				teacherAudioUrl: audioUrl || undefined,
-			});
+			};
+			if (!audioUrl) {
+				payload.teacherAudioUrl = "";
+			}
+			await api.post(
+				`/teaching/submissions/${selectedVersionId}/review`,
+				payload,
+			);
 			// 从待批改列表移除
 			if (submissions) {
 				setSubmissions({
@@ -646,6 +696,7 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 									<AnnotationCanvas
 										imageUrl={submissionDetail.submission.imageUrl}
 										annotations={submissionDetail.submission.annotations}
+										annotationType={annotationType}
 										onAddAnnotation={addAnnotation}
 										onDeleteAnnotation={deleteAnnotation}
 										annotationContent={annotationContent}
@@ -676,7 +727,7 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 										</div>
 										<Input
 											type="text"
-											placeholder="输入标注内容（如：起笔藏锋不到位）"
+											placeholder="标注内容（可选，如：起笔藏锋不到位）"
 											value={annotationContent}
 											onChange={(e) => setAnnotationContent(e.target.value)}
 											className="flex-1"
@@ -762,25 +813,16 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 
 							{/* 音频评语 */}
 							<div className="space-y-2">
-								<label
-									htmlFor="audio-url"
-									className="flex items-center gap-1.5 text-sm font-medium"
-								>
-									<Play className="size-3.5" />
-									音频评语 URL（可选）
-								</label>
-								<Input
-									id="audio-url"
-									type="url"
-									placeholder="https://example.com/review.mp3"
-									value={audioUrl}
-									onChange={(e) => setAudioUrl(e.target.value)}
+								<div className="flex items-center gap-1.5 text-sm font-medium">
+									<PenTool className="size-3.5" />
+									音频评语（按住说话，松开自动保存）
+								</div>
+								<AudioRecorder
+									audioUrl={audioUrl || null}
+									onRecorded={handleAudioRecorded}
+									onClear={() => setAudioUrl("")}
+									uploading={audioUploading}
 								/>
-								{audioUrl && (
-									<audio controls src={audioUrl} className="w-full">
-										<track kind="captions" />
-									</audio>
-								)}
 							</div>
 						</>
 					)}

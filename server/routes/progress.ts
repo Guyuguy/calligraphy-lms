@@ -205,6 +205,121 @@ progressRouter.get("/:studentId/course/:courseId", (c) => {
 });
 
 // ============================================================
+// 上报视频观看进度（学生本人或自动触发）
+// POST /api/progress/:studentId/units/:unitId
+// body: { videoWatchedSeconds?, action? }
+// ============================================================
+
+progressRouter.post("/:studentId/units/:unitId", async (c) => {
+	const parsed = requireAuth(c);
+	if (!parsed)
+		return c.json({ error: "unauthorized", message: "未登录" }, 401);
+
+	const studentId = c.req.param("studentId");
+	const unitId = c.req.param("unitId");
+
+	// 学生只能更新自己的进度；教师/管理员/家长不能代为更新
+	if (parsed.role === "student" && parsed.userId !== studentId) {
+		return c.json(
+			{ error: "forbidden", message: "只能更新自己的学习进度" },
+			403,
+		);
+	}
+	// 非学生角色（如系统自动上报）允许通过，但通常只用于教师/管理员测试
+	if (
+		parsed.role !== "student" &&
+		parsed.role !== "admin" &&
+		parsed.role !== "academic_head"
+	) {
+		return c.json(
+			{ error: "forbidden", message: "无权更新学习进度" },
+			403,
+		);
+	}
+
+	// 找到单元所属课程
+	let courseId: string | null = null;
+	let watchSecondsThreshold = 0;
+	for (const course of courses.values()) {
+		for (const mod of course.modules) {
+			const unit = mod.units.find((u) => u.id === unitId);
+			if (unit) {
+				courseId = course.id;
+				watchSecondsThreshold = unit.completionCriteria.watchSeconds ?? 0;
+				break;
+			}
+		}
+		if (courseId) break;
+	}
+	if (!courseId) {
+		return c.json({ error: "not_found", message: "单元不存在" }, 404);
+	}
+
+	let body: { videoWatchedSeconds?: number };
+	try {
+		body = await c.req.json();
+	} catch {
+		body = {};
+	}
+
+	const watchedSeconds =
+		typeof body.videoWatchedSeconds === "number" && body.videoWatchedSeconds >= 0
+			? body.videoWatchedSeconds
+			: 0;
+
+	const key = `${studentId}:${unitId}`;
+	const existing = progress.get(key);
+	const now = new Date().toISOString();
+
+	// 计算状态：累计观看秒数达到阈值则标记完成
+	const totalWatched = Math.max(
+		existing?.videoWatchedSeconds ?? 0,
+		watchedSeconds,
+	);
+	let status: ProgressStatus = existing?.status ?? "not_started";
+	let percent = existing?.percent ?? 0;
+	if (watchSecondsThreshold > 0 && totalWatched >= watchSecondsThreshold) {
+		status = "completed";
+		percent = 100;
+	} else if (totalWatched > 0) {
+		status = "in_progress";
+		percent =
+			watchSecondsThreshold > 0
+				? Math.min(
+						99,
+						Math.round((totalWatched / watchSecondsThreshold) * 100),
+					)
+				: Math.max(percent, 10);
+	}
+
+	const record: Progress = {
+		studentId,
+		unitId,
+		courseId,
+		status,
+		percent,
+		lastActivityAt: now,
+		videoWatchedSeconds: totalWatched,
+		practiceCount: existing?.practiceCount ?? 0,
+		submissionCount: existing?.submissionCount ?? 0,
+		quizScore: existing?.quizScore ?? null,
+	};
+	progress.set(key, record);
+
+	// 同步打卡（视频学习也算练习时长）
+	const dateStr = now.slice(0, 10);
+	const pdKey = `${studentId}:${dateStr}`;
+	const existingPd = practiceDays.get(pdKey);
+	practiceDays.set(pdKey, {
+		studentId,
+		date: dateStr,
+		minutes: (existingPd?.minutes ?? 0) + 1, // 每次 +1 分钟（粗粒度）
+	});
+
+	return c.json({ ok: true, progress: record });
+});
+
+// ============================================================
 // 打卡热力图（过去 N 天，默认 90）
 // ============================================================
 

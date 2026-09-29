@@ -11,6 +11,7 @@ import {
 	type Style,
 	type User,
 } from "@/api/client";
+import { CourseEditor } from "@/components/domain/CourseEditor";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,12 +37,23 @@ export function CourseList({ user, navigate }: CourseListProps) {
 	const [stage, setStage] = useState<string>("all");
 	const [level, setLevel] = useState<string>("all");
 	const [style, setStyle] = useState<string>("all");
+	const [editorOpen, setEditorOpen] = useState(false);
 
-	useEffect(() => {
+	const canManage =
+		user.role === "admin" ||
+		user.role === "academic_head" ||
+		user.role === "teacher";
+
+	const reload = () => {
+		setLoading(true);
 		api
 			.get<{ courses: Course[] }>("/courses")
 			.then((r) => setCourses(r.courses))
 			.finally(() => setLoading(false));
+	};
+
+	useEffect(() => {
+		reload();
 	}, []);
 
 	const filtered = useMemo(() => {
@@ -65,10 +77,8 @@ export function CourseList({ user, navigate }: CourseListProps) {
 			title="课程管理"
 			description={`共 ${courses.length} 门课程`}
 			actions={
-				(user.role === "admin" ||
-					user.role === "academic_head" ||
-					user.role === "teacher") && (
-					<Button>
+				canManage && (
+					<Button onClick={() => setEditorOpen(true)}>
 						<Plus className="size-4" />
 						新建课程
 					</Button>
@@ -163,6 +173,19 @@ export function CourseList({ user, navigate }: CourseListProps) {
 					)}
 				</CardContent>
 			</Card>
+
+			{canManage && (
+				<CourseEditor
+					open={editorOpen}
+					onOpenChange={setEditorOpen}
+					user={user}
+					existing={null}
+					onSaved={(c) => {
+						setEditorOpen(false);
+						navigate(`/courses/${c.id}`);
+					}}
+				/>
+			)}
 		</PageContainer>
 	);
 }

@@ -1,5 +1,5 @@
 import { AlertTriangle, Calendar, Clock, MapPin, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	api,
 	type Classroom,
@@ -60,7 +60,7 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 		else setView("classroom");
 	}, [user.role]);
 
-	const loadSchedules = () => {
+	const loadSchedules = useCallback(() => {
 		setLoading(true);
 		let url = "/schedules";
 		if (
@@ -78,7 +78,7 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 			.then((r) => setSchedules(r.schedules))
 			.catch(() => setSchedules([]))
 			.finally(() => setLoading(false));
-	};
+	}, [view, selectedTeacher, selectedClassroom, user.role, user.id]);
 
 	useEffect(() => {
 		api.get<{ classrooms: Classroom[] }>("/classrooms").then((r) => {
@@ -92,7 +92,6 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 
 	useEffect(() => {
 		loadSchedules();
-		// biome-ignore lint/correctness/useExhaustiveDependencies: loadSchedules is stable
 	}, [loadSchedules]);
 
 	const grid = useMemo(() => {
