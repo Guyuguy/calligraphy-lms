@@ -11,6 +11,7 @@ import type {
 	Level,
 	Notification,
 	ParentProfile,
+	Payment,
 	PracticeDay,
 	Progress,
 	Schedule,
@@ -43,6 +44,7 @@ export const artworks = new Map<string, Artwork>();
 export const annotations = new Map<string, Annotation>();
 export const evaluations = new Map<string, Evaluation>();
 export const notifications = new Map<string, Notification>();
+export const payments = new Map<string, Payment>();
 
 // ============================================================
 // 工具
@@ -676,6 +678,92 @@ function seedArtworks() {
 	});
 }
 
+function seedPayments() {
+	const now = Date.now();
+	const DAY = 86400000;
+	for (const [parentId, pp] of parentProfiles.entries()) {
+		const childId = pp.childIds[0];
+		if (!childId) continue;
+		// 1 已支付
+		const payId1 = `pay_${parentId.slice(-2)}_1`;
+		payments.set(payId1, {
+			id: payId1,
+			studentId: childId,
+			parentId,
+			title: "秋季班学费（第一期）",
+			amount: 1280,
+			dueAt: new Date(now - 7 * DAY).toISOString(),
+			status: "paid",
+			createdAt: new Date(now - 14 * DAY).toISOString(),
+			paidAt: new Date(now - 8 * DAY).toISOString(),
+		});
+		// 1 待支付（7 天后到期）
+		const payId2 = `pay_${parentId.slice(-2)}_2`;
+		payments.set(payId2, {
+			id: payId2,
+			studentId: childId,
+			parentId,
+			title: "秋季班学费（第二期）",
+			amount: 1280,
+			dueAt: new Date(now + 7 * DAY).toISOString(),
+			status: "pending",
+			createdAt: new Date(now - 1 * DAY).toISOString(),
+		});
+		// 1 逾期（3 天前到期）
+		const payId3 = `pay_${parentId.slice(-2)}_3`;
+		payments.set(payId3, {
+			id: payId3,
+			studentId: childId,
+			parentId,
+			title: "教材资料费",
+			amount: 260,
+			dueAt: new Date(now - 3 * DAY).toISOString(),
+			status: "overdue",
+			createdAt: new Date(now - 10 * DAY).toISOString(),
+		});
+	}
+}
+
+function seedNotifications() {
+	const now = new Date().toISOString();
+	// 为每位家长生成缴费提醒 + 欢迎
+	for (const [parentId, pp] of parentProfiles.entries()) {
+		const childId = pp.childIds[0];
+		if (!childId) continue;
+		const payNotifId = `notif_pay_${parentId.slice(-2)}`;
+		notifications.set(payNotifId, {
+			id: payNotifId,
+			userId: parentId,
+			type: "payment_due",
+			title: "缴费提醒",
+			body: `您孩子 ${users.get(childId)?.name ?? ""} 的秋季班第二期学费将于 7 天内到期，请及时缴费。`,
+			read: false,
+			createdAt: now,
+		});
+		const welcomeNotifId = `notif_welcome_${parentId.slice(-2)}`;
+		notifications.set(welcomeNotifId, {
+			id: welcomeNotifId,
+			userId: parentId,
+			type: "class_reminder",
+			title: "欢迎使用墨韵书院",
+			body: "家长端已开通，您可以在此查看孩子的学习进度、缴费记录并提交对教师的评价。",
+			read: false,
+			createdAt: now,
+		});
+	}
+	// 为第一名学生生成样本课前提醒
+	const studentNotifId = `notif_class_student_01`;
+	notifications.set(studentNotifId, {
+		id: studentNotifId,
+		userId: "user_student_01",
+		type: "class_reminder",
+		title: "课前提醒",
+		body: "您明天 09:00 有《楷书入门 — 基本笔画》课程，请提前 10 分钟进入教室。",
+		read: false,
+		createdAt: now,
+	});
+}
+
 export function initDb() {
 	seedUsers();
 	seedCourses();
@@ -684,7 +772,9 @@ export function initDb() {
 	seedProgress();
 	seedAssignmentsAndSubmissions();
 	seedArtworks();
+	seedPayments();
+	seedNotifications();
 	console.log(
-		`[db] seeded: ${users.size} users, ${courses.size} courses, ${schedules.size} schedules, ${progress.size} progress records`,
+		`[db] seeded: ${users.size} users, ${courses.size} courses, ${schedules.size} schedules, ${progress.size} progress records, ${payments.size} payments, ${notifications.size} notifications`,
 	);
 }

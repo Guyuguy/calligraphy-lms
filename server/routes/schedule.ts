@@ -8,6 +8,7 @@ import {
 	users,
 } from "../db";
 import type { Schedule, ScheduleMode } from "../types";
+import { createNotification } from "./notifications";
 import { requireAuth, requireRoles } from "./users";
 
 export const scheduleRouter = new Hono();
@@ -186,6 +187,24 @@ scheduleRouter.post("/", requireRoles("admin", "academic_head"), async (c) => {
 		studentIds: body.studentIds ?? [],
 	};
 	schedules.set(id, newSchedule);
+
+	// 通知所有相关方：排课已创建
+	const courseTitle = courses.get(newSchedule.courseId)?.title ?? "未命名课程";
+	const recipients = new Set<string>([
+		...newSchedule.studentIds,
+		newSchedule.teacherId,
+	]);
+	for (const rid of recipients) {
+		if (users.has(rid)) {
+			createNotification(
+				rid,
+				"reschedule",
+				"排课通知",
+				`课程《${courseTitle}》已排入课表`,
+			);
+		}
+	}
+
 	return c.json({ schedule: newSchedule }, 201);
 });
 
@@ -223,6 +242,24 @@ scheduleRouter.put(
 
 		const updated: Schedule = { ...candidate, id };
 		schedules.set(id, updated);
+
+		// 通知所有相关方：排课已调整
+		const courseTitle = courses.get(updated.courseId)?.title ?? "未命名课程";
+		const recipients = new Set<string>([
+			...updated.studentIds,
+			updated.teacherId,
+		]);
+		for (const rid of recipients) {
+			if (users.has(rid)) {
+				createNotification(
+					rid,
+					"reschedule",
+					"调课通知",
+					`课程《${courseTitle}》的排课已调整`,
+				);
+			}
+		}
+
 		return c.json({ schedule: updated });
 	},
 );

@@ -18,7 +18,7 @@ export const progressRouter = new Hono();
 // 工具函数
 // ============================================================
 
-function getCourseProgress(studentId: string, courseId: string) {
+export function getCourseProgress(studentId: string, courseId: string) {
 	const course = courses.get(courseId);
 	if (!course) return null;
 	const allUnits = course.modules.flatMap((m) => m.units);
@@ -72,20 +72,12 @@ function deriveStatus(
 }
 
 // ============================================================
-// 学生总进度概览
+// 学生总进度概览（共享 helper）
 // ============================================================
 
-progressRouter.get("/:studentId", (c) => {
-	const parsed = requireAuth(c);
-	if (!parsed) return c.json({ error: "unauthorized", message: "未登录" }, 401);
-
-	const studentId = c.req.param("studentId");
-	if (!users.has(studentId))
-		return c.json({ error: "not_found", message: "学生不存在" }, 404);
-
+export function getStudentSummary(studentId: string) {
 	const profile = studentProfiles.get(studentId);
-	if (!profile)
-		return c.json({ error: "not_found", message: "学生档案不存在" }, 404);
+	if (!profile) return null;
 
 	// 找出该学生有进度的所有课程
 	const courseIds = new Set<string>();
@@ -133,7 +125,7 @@ progressRouter.get("/:studentId", (c) => {
 		}
 	}
 
-	return c.json({
+	return {
 		studentId,
 		profile,
 		courses: courseProgress,
@@ -146,7 +138,22 @@ progressRouter.get("/:studentId", (c) => {
 			streakDays: streak,
 			totalPracticeMinutes: profile.totalPracticeMinutes,
 		},
-	});
+	};
+}
+
+progressRouter.get("/:studentId", (c) => {
+	const parsed = requireAuth(c);
+	if (!parsed) return c.json({ error: "unauthorized", message: "未登录" }, 401);
+
+	const studentId = c.req.param("studentId");
+	if (!users.has(studentId))
+		return c.json({ error: "not_found", message: "学生不存在" }, 404);
+
+	const result = getStudentSummary(studentId);
+	if (!result)
+		return c.json({ error: "not_found", message: "学生档案不存在" }, 404);
+
+	return c.json(result);
 });
 
 // ============================================================

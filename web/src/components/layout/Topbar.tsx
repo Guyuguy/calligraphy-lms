@@ -1,20 +1,25 @@
 import { LogOut, Moon, Sun, User as UserIcon } from "lucide-react";
 import type { User } from "@/api/client";
 import { ROLE_LABELS } from "@/api/client";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/lib/theme";
 
 interface TopbarProps {
 	user: User;
 	onLogout: () => void;
+	onNavigate: (path: string) => void;
 }
 
-export function Topbar({ user, onLogout }: TopbarProps) {
+export function Topbar({ user, onLogout, onNavigate }: TopbarProps) {
 	const { theme, toggle } = useTheme();
 	return (
 		<header className="flex h-14 items-center justify-between border-b border-border bg-surface-1 px-6">
 			<div className="text-sm text-text-muted">欢迎回来，{user.name}</div>
 			<div className="flex items-center gap-2">
+				<NotificationBell
+					onNavigateNotifications={() => onNavigate("/notifications")}
+				/>
 				<Button
 					variant="ghost"
 					size="icon"

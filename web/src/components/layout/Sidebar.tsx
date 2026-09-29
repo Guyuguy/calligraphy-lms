@@ -3,6 +3,7 @@ import {
 	BookOpen,
 	Calendar,
 	GraduationCap,
+	HeartHandshake,
 	LayoutDashboard,
 	PenTool,
 	Sparkles,
@@ -45,6 +46,12 @@ const NAV_ITEMS: NavItem[] = [
 		path: "/progress",
 		icon: BarChart3,
 		roles: ["student", "parent", "teacher"],
+	},
+	{
+		label: "家长中心",
+		path: "/parent",
+		icon: HeartHandshake,
+		roles: ["parent"],
 	},
 	{
 		label: "教学进度",

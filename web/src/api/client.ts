@@ -478,6 +478,98 @@ export interface SubmissionVersionsResponse {
 }
 
 // ============================================================
+// 通知系统（Batch 7）
+// ============================================================
+
+export type NotificationType =
+	| "class_reminder"
+	| "assignment_due"
+	| "review_completed"
+	| "reschedule"
+	| "payment_due";
+
+export interface Notification {
+	id: string;
+	userId: string;
+	type: NotificationType;
+	title: string;
+	body: string;
+	read: boolean;
+	createdAt: string;
+	meta?: Record<string, unknown>;
+}
+
+export interface NotificationListResponse {
+	userId: string;
+	total: number;
+	limit: number;
+	offset: number;
+	notifications: Notification[];
+}
+
+export interface UnreadCountResponse {
+	userId: string;
+	count: number;
+}
+
+export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
+	class_reminder: "课前提醒",
+	assignment_due: "作业截止",
+	review_completed: "批改完成",
+	reschedule: "调课通知",
+	payment_due: "缴费提醒",
+};
+
+// ============================================================
+// 家长端（Batch 5）
+// ============================================================
+
+export interface Payment {
+	id: string;
+	studentId: string;
+	parentId: string;
+	title: string;
+	amount: number;
+	dueAt: string;
+	status: "pending" | "paid" | "overdue";
+	createdAt: string;
+	paidAt?: string;
+}
+
+export interface PaymentsResponse {
+	parentId: string;
+	count: number;
+	payments: Payment[];
+}
+
+export interface Evaluation {
+	id: string;
+	targetType: "teacher" | "student" | "course";
+	targetId: string;
+	authorId: string;
+	rating: number;
+	comment: string;
+	createdAt: string;
+}
+
+export interface EvaluationsResponse {
+	parentId: string;
+	count: number;
+	evaluations: Evaluation[];
+}
+
+export interface ParentChild {
+	user: User | null;
+	profile: StudentProfile | null;
+	summary: ProgressOverview["summary"] | null;
+}
+
+export interface ParentChildrenResponse {
+	parentId: string;
+	children: ParentChild[];
+}
+
+// ============================================================
 // 标签辅助
 // ============================================================
 

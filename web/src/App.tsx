@@ -7,6 +7,11 @@ import { CourseList } from "@/pages/courses/CourseList";
 import { CourseRecommend } from "@/pages/courses/CourseRecommend";
 import { Dashboard } from "@/pages/Dashboard";
 import { Login } from "@/pages/Login";
+import { Notifications } from "@/pages/notifications/Notifications";
+import { ChildProgress } from "@/pages/parent/ChildProgress";
+import { Evaluations } from "@/pages/parent/Evaluations";
+import { ParentDashboard } from "@/pages/parent/ParentDashboard";
+import { Payments } from "@/pages/parent/Payments";
 import { ProgressView } from "@/pages/progress/ProgressView";
 import { ScheduleView } from "@/pages/schedule/ScheduleView";
 import { StudentDetail } from "@/pages/students/StudentDetail";
@@ -79,7 +84,7 @@ export function App() {
 			<div className="flex flex-1 overflow-hidden">
 				<Sidebar currentPath={path} onNavigate={navigate} role={user.role} />
 				<div className="flex flex-1 flex-col overflow-hidden">
-					<Topbar user={user} onLogout={handleLogout} />
+					<Topbar user={user} onLogout={handleLogout} onNavigate={navigate} />
 					<main className="flex-1 overflow-y-auto bg-surface-0 ink-bg">
 						<Router path={path} user={user} navigate={navigate} />
 					</main>
@@ -134,6 +139,19 @@ function Router({ path, user, navigate }: RouterProps) {
 	if (path === "/schedule") return <ScheduleView user={user} />;
 	if (path === "/progress") return <ProgressView user={user} />;
 	if (path === "/teaching") return <TeachingDashboard user={user} />;
+	if (path === "/notifications") return <Notifications />;
+	if (path === "/parent")
+		return <ParentDashboard user={user} navigate={navigate} />;
+	if (path.startsWith("/parent/child/"))
+		return (
+			<ChildProgress
+				childId={path.slice("/parent/child/".length)}
+				user={user}
+				navigate={navigate}
+			/>
+		);
+	if (path === "/parent/payments") return <Payments user={user} />;
+	if (path === "/parent/evaluations") return <Evaluations />;
 	return <NotFound />;
 }
 

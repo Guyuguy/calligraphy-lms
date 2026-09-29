@@ -4,6 +4,8 @@ import { logger } from "hono/logger";
 import { initDb } from "./db";
 import { auth } from "./routes/auth";
 import { coursesRouter } from "./routes/courses";
+import { notificationsRouter } from "./routes/notifications";
+import { parentRouter } from "./routes/parent";
 import { progressRouter } from "./routes/progress";
 import { recommendationsRouter } from "./routes/recommendations";
 import { classroomRouter, scheduleRouter } from "./routes/schedule";
@@ -36,6 +38,8 @@ app.route("/api/classrooms", classroomRouter);
 app.route("/api/progress", progressRouter);
 app.route("/api/teaching", teachingRouter);
 app.route("/api/submissions", submissionsRouter);
+app.route("/api/notifications", notificationsRouter);
+app.route("/api/parent", parentRouter);
 
 const port = Number(process.env.PORT ?? 3001);
 console.log(`[calligraphy-lms] server listening on http://localhost:${port}`);

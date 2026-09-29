@@ -264,6 +264,22 @@ export interface Evaluation {
 }
 
 // ============================================================
+// 缴费
+// ============================================================
+
+export interface Payment {
+	id: string;
+	studentId: string;
+	parentId: string;
+	title: string;
+	amount: number;
+	dueAt: string;
+	status: "pending" | "paid" | "overdue";
+	createdAt: string;
+	paidAt?: string;
+}
+
+// ============================================================
 // 通知
 // ============================================================
 
@@ -282,6 +298,7 @@ export interface Notification {
 	body: string;
 	read: boolean;
 	createdAt: string;
+	meta?: Record<string, unknown>;
 }
 
 // ============================================================

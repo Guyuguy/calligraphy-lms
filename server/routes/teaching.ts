@@ -11,6 +11,7 @@ import {
 	users,
 } from "../db";
 import type { Submission } from "../types";
+import { createNotification } from "./notifications";
 import { requireAuth, requireRoles } from "./users";
 
 export const teachingRouter = new Hono();
@@ -260,6 +261,14 @@ teachingRouter.post(
 				});
 			}
 		}
+
+		// 通知学生：批改完成
+		createNotification(
+			sub.studentId,
+			"review_completed",
+			"批改完成",
+			`您的作业《${assignments.get(sub.assignmentId)?.title ?? ""}》已批改，得分 ${body.score} 分。`,
+		);
 
 		return c.json({ ok: true, submission: updated });
 	},
