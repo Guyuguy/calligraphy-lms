@@ -13,7 +13,9 @@
 		"check:fix": "biome check --fix ."
 	},
 	"dependencies": {
-		"hono": "^4.12.15"
+		"hono": "^4.12.15",
+		"mammoth": "^1.13.0",
+		"xlsx": "^0.18.5"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

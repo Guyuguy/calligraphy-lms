@@ -115,12 +115,12 @@ export function CourseDetail({ id, user, navigate }: CourseDetailProps) {
 				<div className="flex gap-2">
 					<Button variant="outline" onClick={() => navigate("/courses")}>
 						<ArrowLeft className="size-4" />
-						返回列表
+						<span className="hidden sm:inline">返回列表</span>
 					</Button>
 					{canManage && (
 						<Button onClick={() => setEditorOpen(true)}>
 							<Pencil className="size-4" />
-							编辑课程
+							<span className="hidden sm:inline">编辑课程</span>
 						</Button>
 					)}
 				</div>
@@ -144,7 +144,7 @@ export function CourseDetail({ id, user, navigate }: CourseDetailProps) {
 						</div>
 						<CardContent className="pt-6">
 							<p className="text-sm text-text-secondary">{course.intro}</p>
-							<div className="mt-4 grid grid-cols-3 gap-4 border-t border-border pt-4 text-sm">
+							<div className="mt-4 grid grid-cols-1 gap-3 border-t border-border pt-4 text-sm sm:grid-cols-3 sm:gap-4">
 								<Stat
 									icon={BookOpen}
 									label="总课时"
@@ -199,16 +199,16 @@ export function CourseDetail({ id, user, navigate }: CourseDetailProps) {
 												<div
 													key={u.id}
 													className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${
-														clickable
-															? "cursor-pointer hover:bg-surface-2"
-															: ""
+														clickable ? "cursor-pointer hover:bg-surface-2" : ""
 													}`}
 													onClick={() =>
-														clickable &&
-														navigate(`/learn/${course.id}/${u.id}`)
+														clickable && navigate(`/learn/${course.id}/${u.id}`)
 													}
 													onKeyDown={(e) => {
-														if (clickable && (e.key === "Enter" || e.key === " ")) {
+														if (
+															clickable &&
+															(e.key === "Enter" || e.key === " ")
+														) {
 															e.preventDefault();
 															navigate(`/learn/${course.id}/${u.id}`);
 														}

@@ -378,16 +378,18 @@ function StatCard({
 		<button
 			type="button"
 			onClick={onClick}
-			className="group flex items-center gap-4 rounded-xl border border-border bg-card p-5 text-left shadow-sm transition-all hover:shadow-md"
+			className="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:shadow-md sm:gap-4 sm:p-5"
 		>
 			<div
-				className={`flex size-12 items-center justify-center rounded-lg ${colorMap[color]}`}
+				className={`flex size-10 items-center justify-center rounded-lg ${colorMap[color]} sm:size-12`}
 			>
-				<Icon className="size-6" />
+				<Icon className="size-5 sm:size-6" />
 			</div>
-			<div>
-				<div className="text-sm text-text-muted">{label}</div>
-				<div className="font-serif text-2xl font-semibold text-text-primary">
+			<div className="min-w-0">
+				<div className="truncate text-xs text-text-muted sm:text-sm">
+					{label}
+				</div>
+				<div className="font-serif text-xl font-semibold text-text-primary sm:text-2xl">
 					{value}
 				</div>
 			</div>

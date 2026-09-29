@@ -1,4 +1,13 @@
-import { Filter, Plus, Search, Star, Users } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import {
+	Download,
+	Filter,
+	Plus,
+	Search,
+	Star,
+	Upload,
+	Users,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
 	api,
@@ -12,6 +21,7 @@ import {
 	type User,
 } from "@/api/client";
 import { CourseEditor } from "@/components/domain/CourseEditor";
+import { CourseImportDialog } from "@/components/domain/CourseImportDialog";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +48,7 @@ export function CourseList({ user, navigate }: CourseListProps) {
 	const [level, setLevel] = useState<string>("all");
 	const [style, setStyle] = useState<string>("all");
 	const [editorOpen, setEditorOpen] = useState(false);
+	const [importOpen, setImportOpen] = useState(false);
 
 	const canManage =
 		user.role === "admin" ||
@@ -78,17 +89,57 @@ export function CourseList({ user, navigate }: CourseListProps) {
 			description={`共 ${courses.length} 门课程`}
 			actions={
 				canManage && (
-					<Button onClick={() => setEditorOpen(true)}>
-						<Plus className="size-4" />
-						新建课程
-					</Button>
+					<div className="flex flex-wrap gap-2">
+						<Button onClick={() => setEditorOpen(true)}>
+							<Plus className="size-4" />
+							新建课程
+						</Button>
+						<Button variant="outline" onClick={() => setImportOpen(true)}>
+							<Upload className="size-4" />
+							导入课程
+						</Button>
+						<DropdownMenu.Root>
+							<DropdownMenu.Trigger asChild>
+								<Button variant="outline">
+									<Download className="size-4" />
+									下载模板
+								</Button>
+							</DropdownMenu.Trigger>
+							<DropdownMenu.Content align="end" className="z-50">
+								<DropdownMenu.Item
+									className="cursor-pointer px-3 py-2 text-sm outline-none data-[highlighted]:bg-surface-2"
+									onClick={() => void downloadTemplate("json")}
+								>
+									JSON 格式 (.json)
+								</DropdownMenu.Item>
+								<DropdownMenu.Item
+									className="cursor-pointer px-3 py-2 text-sm outline-none data-[highlighted]:bg-surface-2"
+									onClick={() => void downloadTemplate("md")}
+								>
+									Markdown 格式 (.md)
+								</DropdownMenu.Item>
+								<DropdownMenu.Item
+									className="cursor-pointer px-3 py-2 text-sm outline-none data-[highlighted]:bg-surface-2"
+									onClick={() => void downloadTemplate("txt")}
+								>
+									TXT 格式 (.txt)
+								</DropdownMenu.Item>
+								<DropdownMenu.Item
+									className="cursor-pointer px-3 py-2 text-sm outline-none data-[highlighted]:bg-surface-2"
+									onClick={() => void downloadTemplate("xlsx")}
+								>
+									Excel 格式 (.xlsx)
+								</DropdownMenu.Item>
+							</DropdownMenu.Content>
+						</DropdownMenu.Root>
+					</div>
 				)
 			}
 		>
 			<Card>
 				<CardContent className="pt-6">
 					<div className="mb-4 flex flex-wrap items-center gap-3">
-						<div className="relative min-w-64 flex-1">
+						<div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
 							<Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted" />
 							<Input
 								placeholder="搜索课程名称或简介..."
@@ -98,7 +149,7 @@ export function CourseList({ user, navigate }: CourseListProps) {
 							/>
 						</div>
 						<Select value={stage} onValueChange={setStage}>
-							<SelectTrigger className="w-32">
+							<SelectTrigger className="w-full sm:w-32">
 								<SelectValue placeholder="书体" />
 							</SelectTrigger>
 							<SelectContent>
@@ -111,7 +162,7 @@ export function CourseList({ user, navigate }: CourseListProps) {
 							</SelectContent>
 						</Select>
 						<Select value={level} onValueChange={setLevel}>
-							<SelectTrigger className="w-32">
+							<SelectTrigger className="w-full sm:w-32">
 								<SelectValue placeholder="难度" />
 							</SelectTrigger>
 							<SelectContent>
@@ -124,7 +175,7 @@ export function CourseList({ user, navigate }: CourseListProps) {
 							</SelectContent>
 						</Select>
 						<Select value={style} onValueChange={setStyle}>
-							<SelectTrigger className="w-32">
+							<SelectTrigger className="w-full sm:w-32">
 								<SelectValue placeholder="字体风格" />
 							</SelectTrigger>
 							<SelectContent>
@@ -175,19 +226,44 @@ export function CourseList({ user, navigate }: CourseListProps) {
 			</Card>
 
 			{canManage && (
-				<CourseEditor
-					open={editorOpen}
-					onOpenChange={setEditorOpen}
-					user={user}
-					existing={null}
-					onSaved={(c) => {
-						setEditorOpen(false);
-						navigate(`/courses/${c.id}`);
-					}}
-				/>
+				<>
+					<CourseEditor
+						open={editorOpen}
+						onOpenChange={setEditorOpen}
+						user={user}
+						existing={null}
+						onSaved={(c) => {
+							setEditorOpen(false);
+							navigate(`/courses/${c.id}`);
+						}}
+					/>
+					<CourseImportDialog
+						open={importOpen}
+						onOpenChange={setImportOpen}
+						onImported={reload}
+					/>
+				</>
 			)}
 		</PageContainer>
 	);
+}
+
+async function downloadTemplate(format: "json" | "md" | "txt" | "xlsx") {
+	try {
+		const { blob, filename } = await api.downloadBlob(
+			`/courses/template?format=${format}`,
+		);
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = filename;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	} catch (e) {
+		console.error("下载模板失败:", e);
+	}
 }
 
 function CourseCard({

@@ -212,8 +212,7 @@ progressRouter.get("/:studentId/course/:courseId", (c) => {
 
 progressRouter.post("/:studentId/units/:unitId", async (c) => {
 	const parsed = requireAuth(c);
-	if (!parsed)
-		return c.json({ error: "unauthorized", message: "未登录" }, 401);
+	if (!parsed) return c.json({ error: "unauthorized", message: "未登录" }, 401);
 
 	const studentId = c.req.param("studentId");
 	const unitId = c.req.param("unitId");
@@ -231,10 +230,7 @@ progressRouter.post("/:studentId/units/:unitId", async (c) => {
 		parsed.role !== "admin" &&
 		parsed.role !== "academic_head"
 	) {
-		return c.json(
-			{ error: "forbidden", message: "无权更新学习进度" },
-			403,
-		);
+		return c.json({ error: "forbidden", message: "无权更新学习进度" }, 403);
 	}
 
 	// 找到单元所属课程
@@ -263,7 +259,8 @@ progressRouter.post("/:studentId/units/:unitId", async (c) => {
 	}
 
 	const watchedSeconds =
-		typeof body.videoWatchedSeconds === "number" && body.videoWatchedSeconds >= 0
+		typeof body.videoWatchedSeconds === "number" &&
+		body.videoWatchedSeconds >= 0
 			? body.videoWatchedSeconds
 			: 0;
 
@@ -285,10 +282,7 @@ progressRouter.post("/:studentId/units/:unitId", async (c) => {
 		status = "in_progress";
 		percent =
 			watchSecondsThreshold > 0
-				? Math.min(
-						99,
-						Math.round((totalWatched / watchSecondsThreshold) * 100),
-					)
+				? Math.min(99, Math.round((totalWatched / watchSecondsThreshold) * 100))
 				: Math.max(percent, 10);
 	}
 

@@ -143,7 +143,7 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 									value={view}
 									onValueChange={(v) => setView(v as ViewMode)}
 								>
-									<SelectTrigger className="w-32">
+									<SelectTrigger className="w-full sm:w-32">
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
@@ -156,7 +156,7 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 										value={selectedClassroom}
 										onValueChange={setSelectedClassroom}
 									>
-										<SelectTrigger className="w-48">
+										<SelectTrigger className="w-full sm:w-48">
 											<SelectValue placeholder="选择教室" />
 										</SelectTrigger>
 										<SelectContent>
@@ -173,7 +173,7 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 										value={selectedTeacher}
 										onValueChange={setSelectedTeacher}
 									>
-										<SelectTrigger className="w-48">
+										<SelectTrigger className="w-full sm:w-48">
 											<SelectValue placeholder="选择教师" />
 										</SelectTrigger>
 										<SelectContent>
@@ -205,42 +205,77 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 							本周暂无课程安排
 						</div>
 					) : (
-						<div className="overflow-x-auto">
-							<div className="grid min-w-[800px] grid-cols-[60px_repeat(7,1fr)] gap-1">
-								<div className="text-center text-xs text-text-muted" />
-								{WEEKDAYS.map((d) => (
-									<div key={d} className="text-center text-sm font-medium">
-										{d}
-									</div>
-								))}
-								{TIME_SLOTS.map((hour) => (
-									<div key={hour} className="contents">
-										<div className="flex items-center justify-center text-xs text-text-muted">
-											{String(hour).padStart(2, "0")}:00
+						<>
+							{/* 平板/桌面：网格视图 */}
+							<div className="hidden overflow-x-auto md:block">
+								<div className="grid min-w-[800px] grid-cols-[60px_repeat(7,1fr)] gap-1">
+									<div className="text-center text-xs text-text-muted" />
+									{WEEKDAYS.map((d) => (
+										<div key={d} className="text-center text-sm font-medium">
+											{d}
 										</div>
-										{WEEKDAYS.map((_, di) => {
-											const weekday = di + 1;
-											const key = `${weekday}-${hour}`;
-											const items = grid[key] ?? [];
-											return (
-												<div
-													key={key}
-													className="min-h-16 rounded-md border border-border bg-surface-1 p-1"
-												>
-													{items.map((s) => (
+									))}
+									{TIME_SLOTS.map((hour) => (
+										<div key={hour} className="contents">
+											<div className="flex items-center justify-center text-xs text-text-muted">
+												{String(hour).padStart(2, "0")}:00
+											</div>
+											{WEEKDAYS.map((_, di) => {
+												const weekday = di + 1;
+												const key = `${weekday}-${hour}`;
+												const items = grid[key] ?? [];
+												return (
+													<div
+														key={key}
+														className="min-h-16 rounded-md border border-border bg-surface-1 p-1"
+													>
+														{items.map((s) => (
+															<ScheduleBlock
+																key={s.id}
+																schedule={s}
+																onClick={() => isAdmin && setEditTarget(s)}
+															/>
+														))}
+													</div>
+												);
+											})}
+										</div>
+									))}
+								</div>
+							</div>
+
+							{/* 手机：按天分组列表 */}
+							<div className="space-y-4 md:hidden">
+								{WEEKDAYS.map((d, di) => {
+									const weekday = di + 1;
+									const dayItems = schedules.filter(
+										(s) => s.weekday === weekday,
+									);
+									if (dayItems.length === 0) return null;
+									return (
+										<div
+											key={d}
+											className="rounded-md border border-border bg-surface-1"
+										>
+											<div className="border-b border-border px-3 py-2 text-sm font-medium">
+												{d}
+											</div>
+											<div className="space-y-1 p-2">
+												{dayItems
+													.sort((a, b) => a.startHour - b.startHour)
+													.map((s) => (
 														<ScheduleBlock
 															key={s.id}
 															schedule={s}
 															onClick={() => isAdmin && setEditTarget(s)}
 														/>
 													))}
-												</div>
-											);
-										})}
-									</div>
-								))}
+											</div>
+										</div>
+									);
+								})}
 							</div>
-						</div>
+						</>
 					)}
 
 					<div className="mt-4 flex items-center gap-4 text-xs text-text-muted">
@@ -417,7 +452,7 @@ function ScheduleDialog({
 
 	return (
 		<Dialog open onOpenChange={(o) => !o && onClose()}>
-			<DialogContent className="max-w-lg">
+			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>{mode === "create" ? "新建排课" : "调课"}</DialogTitle>
 					<DialogDescription>
@@ -451,7 +486,7 @@ function ScheduleDialog({
 						)}
 					</div>
 
-					<div className="grid grid-cols-2 gap-3">
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						<div className="space-y-1.5">
 							<Label>星期</Label>
 							<Select value={weekday} onValueChange={setWeekday}>
@@ -487,7 +522,7 @@ function ScheduleDialog({
 						</div>
 					</div>
 
-					<div className="grid grid-cols-2 gap-3">
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						<div className="space-y-1.5">
 							<Label>开始时间</Label>
 							<Select value={startHour} onValueChange={setStartHour}>

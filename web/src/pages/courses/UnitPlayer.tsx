@@ -75,9 +75,7 @@ export function UnitPlayer({
 					return;
 				}
 				// 用带 token 的 fetch 拿 blob URL
-				const url = await api.getVideoBlob(
-					unit.videoUrl.replace(/^\/api/, ""),
-				);
+				const url = await api.getVideoBlob(unit.videoUrl.replace(/^\/api/, ""));
 				if (cancelled) return;
 				setVideoUrl(url);
 				// 加载已有进度
@@ -236,7 +234,7 @@ export function UnitPlayer({
 					onClick={() => navigate(`/courses/${courseId}`)}
 				>
 					<ArrowLeft className="size-4" />
-					返回课程
+					<span className="hidden sm:inline">返回课程</span>
 				</Button>
 			}
 		>
@@ -304,27 +302,25 @@ export function UnitPlayer({
 					</Card>
 
 					{/* 上一节 / 下一节 */}
-					<div className="flex items-center justify-between gap-2">
+					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 						{prevUnit ? (
 							<Button
 								variant="outline"
-								onClick={() =>
-									navigate(`/learn/${courseId}/${prevUnit.id}`)
-								}
+								onClick={() => navigate(`/learn/${courseId}/${prevUnit.id}`)}
+								className="w-full sm:w-auto"
 							>
-								<ArrowLeft className="size-4" />
-								上一节：{prevUnit.title}
+								<ArrowLeft className="size-4 shrink-0" />
+								<span className="truncate">上一节：{prevUnit.title}</span>
 							</Button>
 						) : (
 							<span />
 						)}
 						{nextUnit ? (
 							<Button
-								onClick={() =>
-									navigate(`/learn/${courseId}/${nextUnit.id}`)
-								}
+								onClick={() => navigate(`/learn/${courseId}/${nextUnit.id}`)}
+								className="w-full sm:w-auto"
 							>
-								下一节：{nextUnit.title}
+								<span className="truncate">下一节：{nextUnit.title}</span>
 							</Button>
 						) : (
 							<span className="text-xs text-text-muted">已是最后一节</span>
@@ -360,8 +356,7 @@ export function UnitPlayer({
 												type="button"
 												disabled={!isPlayable}
 												onClick={() =>
-													isPlayable &&
-													navigate(`/learn/${courseId}/${u.id}`)
+													isPlayable && navigate(`/learn/${courseId}/${u.id}`)
 												}
 												className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
 													isCurrent

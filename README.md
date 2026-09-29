@@ -26,11 +26,11 @@ bun install
 # 启动后端（端口 3001）
 bun run server
 
-# 另开终端启动前端（端口 5173）
+# 另开终端启动前端（端口 5175）
 cd web && bunx vite
 ```
 
-浏览器访问 http://localhost:5173
+浏览器访问 http://localhost:5175
 
 ## 测试账号
 

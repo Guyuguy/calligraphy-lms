@@ -110,9 +110,7 @@ export function CourseEditor({
 		existing?.teacherId ?? (user.role === "teacher" ? user.id : ""),
 	);
 	const [modules, setModules] = useState<Module[]>(
-		existing?.modules.map((m, i) => ({ ...m, order: i })) ?? [
-			blankModule(0),
-		],
+		existing?.modules.map((m, i) => ({ ...m, order: i })) ?? [blankModule(0)],
 	);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -127,9 +125,7 @@ export function CourseEditor({
 	};
 
 	const updateModule = (idx: number, patch: Partial<Module>) => {
-		setModules(
-			modules.map((m, i) => (i === idx ? { ...m, ...patch } : m)),
-		);
+		setModules(modules.map((m, i) => (i === idx ? { ...m, ...patch } : m)));
 	};
 
 	const addUnit = (modIdx: number, type: Unit["type"]) => {
@@ -206,9 +202,7 @@ export function CourseEditor({
 		const unit = modules[modIdx].units[unitIdx];
 		if (!isEdit || !unit.videoUrl) return;
 		try {
-			await api.del(
-				`/courses/${existing!.id}/units/${unit.id}/video`,
-			);
+			await api.del(`/courses/${existing!.id}/units/${unit.id}/video`);
 			updateUnit(modIdx, unitIdx, {
 				videoUrl: undefined,
 				videoMime: undefined,
@@ -263,21 +257,19 @@ export function CourseEditor({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+			<DialogContent className="sm:max-h-[90vh] sm:max-w-3xl sm:overflow-y-auto">
 				<DialogHeader>
-					<DialogTitle>
-						{isEdit ? "编辑课程" : "新建课程"}
-					</DialogTitle>
+					<DialogTitle>{isEdit ? "编辑课程" : "新建课程"}</DialogTitle>
 					<DialogDescription>
-						填写课程信息，添加章节和单元，可为视频单元上传视频文件
-						（最大 1024MB）
+						填写课程信息，添加章节和单元，可为视频单元上传视频文件 （最大
+						1024MB）
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4">
 					{/* 基本信息 */}
-					<div className="grid grid-cols-2 gap-3">
-						<div className="col-span-2 space-y-1.5">
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+						<div className="sm:col-span-2 space-y-1.5">
 							<label htmlFor="ce-title" className="text-sm font-medium">
 								课程标题
 							</label>
@@ -290,10 +282,7 @@ export function CourseEditor({
 						</div>
 						<div className="space-y-1.5">
 							<label className="text-sm font-medium">书体</label>
-							<Select
-								value={stage}
-								onValueChange={(v) => setStage(v as Stage)}
-							>
+							<Select value={stage} onValueChange={(v) => setStage(v as Stage)}>
 								<SelectTrigger>
 									<SelectValue />
 								</SelectTrigger>
@@ -308,10 +297,7 @@ export function CourseEditor({
 						</div>
 						<div className="space-y-1.5">
 							<label className="text-sm font-medium">难度</label>
-							<Select
-								value={level}
-								onValueChange={(v) => setLevel(v as Level)}
-							>
+							<Select value={level} onValueChange={(v) => setLevel(v as Level)}>
 								<SelectTrigger>
 									<SelectValue />
 								</SelectTrigger>
@@ -326,10 +312,7 @@ export function CourseEditor({
 						</div>
 						<div className="space-y-1.5">
 							<label className="text-sm font-medium">风格</label>
-							<Select
-								value={style}
-								onValueChange={(v) => setStyle(v as Style)}
-							>
+							<Select value={style} onValueChange={(v) => setStyle(v as Style)}>
 								<SelectTrigger>
 									<SelectValue />
 								</SelectTrigger>
@@ -354,7 +337,7 @@ export function CourseEditor({
 								onChange={(e) => setPrice(Number(e.target.value))}
 							/>
 						</div>
-						<div className="col-span-2 space-y-1.5">
+						<div className="sm:col-span-2 space-y-1.5">
 							<label htmlFor="ce-audience" className="text-sm font-medium">
 								面向学员
 							</label>
@@ -365,7 +348,7 @@ export function CourseEditor({
 								placeholder="如：零基础成人 / 小学高年级"
 							/>
 						</div>
-						<div className="col-span-2 space-y-1.5">
+						<div className="sm:col-span-2 space-y-1.5">
 							<label htmlFor="ce-intro" className="text-sm font-medium">
 								课程简介
 							</label>
@@ -376,7 +359,7 @@ export function CourseEditor({
 								onChange={(e) => setIntro(e.target.value)}
 							/>
 						</div>
-						<div className="col-span-2 space-y-1.5">
+						<div className="sm:col-span-2 space-y-1.5">
 							<label htmlFor="ce-cover" className="text-sm font-medium">
 								封面 URL（可选）
 							</label>
@@ -388,11 +371,8 @@ export function CourseEditor({
 							/>
 						</div>
 						{user.role === "admin" && (
-							<div className="col-span-2 space-y-1.5">
-								<label
-									htmlFor="ce-teacher"
-									className="text-sm font-medium"
-								>
+							<div className="sm:col-span-2 space-y-1.5">
+								<label htmlFor="ce-teacher" className="text-sm font-medium">
 									授课教师 ID（可选，留空则使用自己）
 								</label>
 								<Input
@@ -457,20 +437,18 @@ export function CourseEditor({
 											key={u.id}
 											className="rounded-md border border-border bg-surface-1 p-2"
 										>
-											<div className="flex items-center gap-2">
+											<div className="flex flex-wrap items-center gap-2">
 												<Select
 													value={u.type}
 													onValueChange={(v) =>
 														updateUnit(mi, ui, {
 															type: v as Unit["type"],
 															completionCriteria:
-																v === "video"
-																	? { watchSeconds: 1800 }
-																	: {},
+																v === "video" ? { watchSeconds: 1800 } : {},
 														})
 													}
 												>
-													<SelectTrigger className="w-32">
+													<SelectTrigger className="w-full sm:w-32">
 														<SelectValue />
 													</SelectTrigger>
 													<SelectContent>
@@ -486,7 +464,7 @@ export function CourseEditor({
 													onChange={(e) =>
 														updateUnit(mi, ui, { title: e.target.value })
 													}
-													className="flex-1"
+													className="min-w-40 flex-1"
 													placeholder="单元标题"
 												/>
 												<Input
@@ -523,15 +501,15 @@ export function CourseEditor({
 															</span>
 															<label className="ml-auto cursor-pointer text-xs text-brand hover:underline">
 																<input
-													type="file"
-													accept="video/*"
-													className="hidden"
-													onChange={(e) => {
-														const f = e.target.files?.[0];
-														if (f) handleUploadVideo(mi, ui, f);
-														e.currentTarget.value = "";
-													}}
-												/>
+																	type="file"
+																	accept="video/*"
+																	className="hidden"
+																	onChange={(e) => {
+																		const f = e.target.files?.[0];
+																		if (f) handleUploadVideo(mi, ui, f);
+																		e.currentTarget.value = "";
+																	}}
+																/>
 																替换
 															</label>
 															<Button
@@ -539,7 +517,7 @@ export function CourseEditor({
 																variant="ghost"
 																onClick={() => handleDeleteVideo(mi, ui)}
 																className="text-xs text-status-error"
-											>
+															>
 																删除视频
 															</Button>
 														</>
@@ -558,16 +536,16 @@ export function CourseEditor({
 																	</>
 																)}
 																<input
-													type="file"
-													accept="video/*"
-													className="hidden"
-													disabled={uploadingUnitId === u.id || !isEdit}
-													onChange={(e) => {
-														const f = e.target.files?.[0];
-														if (f) handleUploadVideo(mi, ui, f);
-														e.currentTarget.value = "";
-													}}
-												/>
+																	type="file"
+																	accept="video/*"
+																	className="hidden"
+																	disabled={uploadingUnitId === u.id || !isEdit}
+																	onChange={(e) => {
+																		const f = e.target.files?.[0];
+																		if (f) handleUploadVideo(mi, ui, f);
+																		e.currentTarget.value = "";
+																	}}
+																/>
 															</label>
 															{!isEdit && (
 																<span className="text-xs text-text-muted">

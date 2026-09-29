@@ -188,7 +188,10 @@ export function StudentDetail({ id, navigate }: StudentDetailProps) {
 								</div>
 							))}
 						</TabsContent>
-						<TabsContent value="artworks" className="grid grid-cols-3 gap-3">
+						<TabsContent
+							value="artworks"
+							className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+						>
 							{[1, 2, 3, 4, 5, 6].map((i) => (
 								<div
 									key={i}

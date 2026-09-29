@@ -1,6 +1,12 @@
 import { Hono } from "hono";
 import { courses, teacherProfiles, uid, users, videoRecords } from "../db";
 import type { Course, Level, Stage, Style } from "../types";
+import {
+	buildCourseFromDraft,
+	generateTemplate,
+	parseCourseFile,
+	type TemplateFormat,
+} from "./coursesImport";
 import { requireAuth, requireRoles } from "./users";
 
 export const coursesRouter = new Hono();
@@ -40,6 +46,89 @@ coursesRouter.get("/", (c) => {
 
 	return c.json({ courses: enriched });
 });
+
+// ============================================================
+// 课程导入 & 模板下载(必须在 /:id 之前注册,否则会被 :id 吃掉)
+// ============================================================
+
+// GET /api/courses/template?format=json|md|txt|xlsx — 下载模板
+coursesRouter.get(
+	"/template",
+	requireRoles("admin", "academic_head", "teacher"),
+	(c) => {
+		const fmt = (c.req.query("format") ?? "json").toLowerCase();
+		const validFormats: TemplateFormat[] = ["json", "md", "txt", "xlsx"];
+		if (!validFormats.includes(fmt as TemplateFormat)) {
+			return c.json(
+				{
+					error: "invalid_format",
+					message: `不支持的格式: ${fmt},支持: ${validFormats.join(", ")}`,
+				},
+				400,
+			);
+		}
+		const { body, mime, filename } = generateTemplate(fmt as TemplateFormat);
+		return new Response(body, {
+			headers: {
+				"Content-Type": mime,
+				"Content-Disposition": `attachment; filename="${filename}"`,
+			},
+		});
+	},
+);
+
+// POST /api/courses/import — 上传文件批量导入课程
+coursesRouter.post(
+	"/import",
+	requireRoles("admin", "academic_head", "teacher"),
+	async (c) => {
+		const parsed = requireAuth(c);
+		if (!parsed)
+			return c.json({ error: "unauthorized", message: "未登录" }, 401);
+
+		const contentType = c.req.header("Content-Type") ?? "";
+		if (!contentType.startsWith("multipart/form-data")) {
+			return c.json(
+				{ error: "invalid_content_type", message: "需要 multipart/form-data" },
+				400,
+			);
+		}
+
+		const form = await c.req.formData();
+		const file = form.get("file");
+		if (!(file instanceof File)) {
+			return c.json({ error: "no_file", message: "未提供文件" }, 400);
+		}
+
+		const buf = new Uint8Array(await file.arrayBuffer());
+		const result = await parseCourseFile(file.name, buf);
+		if (result.courses.length === 0) {
+			return c.json(
+				{
+					error: "parse_failed",
+					message: "未能解析出任何课程",
+					details: result.errors,
+				},
+				400,
+			);
+		}
+
+		const created: Course[] = [];
+		const errors: string[] = [...result.errors];
+		for (const draft of result.courses) {
+			try {
+				const course = buildCourseFromDraft(draft, parsed.userId);
+				courses.set(course.id, course);
+				created.push(course);
+			} catch (e) {
+				errors.push(
+					`课程"${draft.title}"创建失败: ${e instanceof Error ? e.message : String(e)}`,
+				);
+			}
+		}
+		return c.json({ created: created.length, courses: created, errors }, 201);
+	},
+);
 
 // 详情
 coursesRouter.get("/:id", (c) => {
@@ -178,10 +267,7 @@ coursesRouter.post(
 			return c.json({ error: "not_found", message: "单元不存在" }, 404);
 
 		// 教师只能上传自己课程的视频
-		if (
-			parsed.role === "teacher" &&
-			course.teacherId !== parsed.userId
-		) {
+		if (parsed.role === "teacher" && course.teacherId !== parsed.userId) {
 			return c.json(
 				{ error: "forbidden", message: "只能上传自己课程的视频" },
 				403,
@@ -270,10 +356,7 @@ coursesRouter.delete(
 		if (!found)
 			return c.json({ error: "not_found", message: "单元不存在" }, 404);
 
-		if (
-			parsed.role === "teacher" &&
-			course.teacherId !== parsed.userId
-		) {
+		if (parsed.role === "teacher" && course.teacherId !== parsed.userId) {
 			return c.json(
 				{ error: "forbidden", message: "只能删除自己课程的视频" },
 				403,
@@ -297,60 +380,56 @@ coursesRouter.delete(
 );
 
 // GET /api/courses/:courseId/units/:unitId/video/:videoId — 下载/播放视频（支持 Range）
-coursesRouter.get(
-	"/:courseId/units/:unitId/video/:videoId",
-	async (c) => {
-		const parsed = requireAuth(c);
-		if (!parsed)
-			return c.json({ error: "unauthorized", message: "未登录" }, 401);
+coursesRouter.get("/:courseId/units/:unitId/video/:videoId", async (c) => {
+	const parsed = requireAuth(c);
+	if (!parsed) return c.json({ error: "unauthorized", message: "未登录" }, 401);
 
-		const courseId = c.req.param("courseId");
-		const unitId = c.req.param("unitId");
-		const videoId = c.req.param("videoId");
+	const courseId = c.req.param("courseId");
+	const unitId = c.req.param("unitId");
+	const videoId = c.req.param("videoId");
 
-		const record = videoRecords.get(videoId);
-		if (!record || record.courseId !== courseId || record.unitId !== unitId) {
-			return c.json({ error: "not_found", message: "视频不存在" }, 404);
-		}
+	const record = videoRecords.get(videoId);
+	if (!record || record.courseId !== courseId || record.unitId !== unitId) {
+		return c.json({ error: "not_found", message: "视频不存在" }, 404);
+	}
 
-		const total = record.data.byteLength;
-		const range = c.req.header("Range");
+	const total = record.data.byteLength;
+	const range = c.req.header("Range");
 
-		if (range) {
-			// 解析 bytes=start-end
-			const m = /^bytes=(\d*)-(\d*)$/.exec(range);
-			if (m) {
-				let start = m[1] ? Number.parseInt(m[1], 10) : 0;
-				let end = m[2] ? Number.parseInt(m[2], 10) : total - 1;
-				if (start > end || start >= total) {
-					return new Response(null, {
-						status: 416,
-						headers: { "Content-Range": `bytes */${total}` },
-					});
-				}
-				if (end >= total) end = total - 1;
-				const chunkSize = end - start + 1;
-				const chunk = record.data.subarray(start, end + 1);
-				return new Response(chunk.buffer.slice(start, end + 1) as ArrayBuffer, {
-					status: 206,
-					headers: {
-						"Content-Type": record.mime,
-						"Content-Length": String(chunkSize),
-						"Content-Range": `bytes ${start}-${end}/${total}`,
-						"Accept-Ranges": "bytes",
-						"Cache-Control": "private, max-age=3600",
-					},
+	if (range) {
+		// 解析 bytes=start-end
+		const m = /^bytes=(\d*)-(\d*)$/.exec(range);
+		if (m) {
+			const start = m[1] ? Number.parseInt(m[1], 10) : 0;
+			let end = m[2] ? Number.parseInt(m[2], 10) : total - 1;
+			if (start > end || start >= total) {
+				return new Response(null, {
+					status: 416,
+					headers: { "Content-Range": `bytes */${total}` },
 				});
 			}
+			if (end >= total) end = total - 1;
+			const chunkSize = end - start + 1;
+			const chunk = record.data.subarray(start, end + 1);
+			return new Response(chunk.buffer.slice(start, end + 1) as ArrayBuffer, {
+				status: 206,
+				headers: {
+					"Content-Type": record.mime,
+					"Content-Length": String(chunkSize),
+					"Content-Range": `bytes ${start}-${end}/${total}`,
+					"Accept-Ranges": "bytes",
+					"Cache-Control": "private, max-age=3600",
+				},
+			});
 		}
+	}
 
-		return new Response(record.data.buffer as ArrayBuffer, {
-			headers: {
-				"Content-Type": record.mime,
-				"Content-Length": String(total),
-				"Accept-Ranges": "bytes",
-				"Cache-Control": "private, max-age=3600",
-			},
-		});
-	},
-);
+	return new Response(record.data.buffer as ArrayBuffer, {
+		headers: {
+			"Content-Type": record.mime,
+			"Content-Length": String(total),
+			"Accept-Ranges": "bytes",
+			"Cache-Control": "private, max-age=3600",
+		},
+	});
+});

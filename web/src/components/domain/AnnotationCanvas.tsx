@@ -1,6 +1,7 @@
 import {
 	type KeyboardEvent,
 	type MouseEvent,
+	type TouchEvent,
 	useLayoutEffect,
 	useRef,
 	useState,
@@ -51,6 +52,8 @@ export function AnnotationCanvas({
 	const [draft, setDraft] = useState<DraftAnno | null>(null);
 	// 用于抑制 mouseUp 后的 click 事件（避免重复添加编号）
 	const suppressClickRef = useRef(false);
+	// 用于抑制 touchend 后的 click 事件
+	const suppressTouchClickRef = useRef(false);
 
 	// 测量容器宽度，用于把百分比 size 转成 px
 	useLayoutEffect(() => {
@@ -78,6 +81,10 @@ export function AnnotationCanvas({
 		if (readonly) return;
 		if (suppressClickRef.current) {
 			suppressClickRef.current = false;
+			return;
+		}
+		if (suppressTouchClickRef.current) {
+			suppressTouchClickRef.current = false;
 			return;
 		}
 		if (annotationType !== "text") return; // 只有编号走点击路径
@@ -162,6 +169,75 @@ export function AnnotationCanvas({
 		setHoveredAnno(null);
 	};
 
+	// ============ 触摸事件（手机/平板） ============
+
+	const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+		if (readonly) return;
+		if (annotationType === "text") return; // 编号走 click
+		const t = e.touches[0];
+		if (!t) return;
+		const pos = toPercent(t.clientX, t.clientY);
+		if (!pos) return;
+		setDraft({
+			x: pos.x,
+			y: pos.y,
+			curX: pos.x,
+			curY: pos.y,
+			type: annotationType as "circle" | "arrow",
+		});
+		// 阻止页面滚动
+		e.preventDefault();
+	};
+
+	const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+		if (readonly || !draft) return;
+		const t = e.touches[0];
+		if (!t) return;
+		const pos = toPercent(t.clientX, t.clientY);
+		if (!pos) return;
+		setDraft({ ...draft, curX: pos.x, curY: pos.y });
+		// 阻止页面滚动
+		e.preventDefault();
+	};
+
+	const handleTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
+		if (readonly || !draft) return;
+		const rect = containerRef.current?.getBoundingClientRect();
+		if (!rect) {
+			setDraft(null);
+			return;
+		}
+		const t = e.changedTouches[0];
+		if (!t) {
+			setDraft(null);
+			return;
+		}
+		const dxPx = t.clientX - rect.left - (draft.x * rect.width) / 100;
+		const dyPx = t.clientY - rect.top - (draft.y * rect.height) / 100;
+		const distPx = Math.sqrt(dxPx * dxPx + dyPx * dyPx);
+		const startX = draft.x;
+		const startY = draft.y;
+		const type = draft.type;
+		setDraft(null);
+		// 抑制后续 click 事件（touchend 会合成 click）
+		suppressTouchClickRef.current = true;
+		if (distPx < MIN_DRAG_PX) {
+			return;
+		}
+		const sizePct = (distPx / rect.width) * 100;
+		const size = Math.max(
+			MIN_SIZE,
+			Math.min(MAX_SIZE, Math.round(sizePct * 10) / 10),
+		);
+		const angle = (Math.atan2(dyPx, dxPx) * 180) / Math.PI;
+		onAddAnnotation(
+			Math.round(startX * 10) / 10,
+			Math.round(startY * 10) / 10,
+			type,
+			{ size, angle },
+		);
+	};
+
 	const interactiveProps = readonly
 		? {}
 		: {
@@ -171,6 +247,9 @@ export function AnnotationCanvas({
 				onMouseLeave: handleMouseLeave,
 				onClick: handleClick,
 				onKeyDown: handleKeyDown,
+				onTouchStart: handleTouchStart,
+				onTouchMove: handleTouchMove,
+				onTouchEnd: handleTouchEnd,
 				role: "button" as const,
 				tabIndex: 0,
 				"aria-label": "长按拖拽添加圈/箭头标注，点击添加编号",
@@ -202,7 +281,7 @@ export function AnnotationCanvas({
 			ref={containerRef}
 			{...interactiveProps}
 			className={`relative overflow-hidden rounded-md border border-border bg-surface-1 ${
-				readonly ? "" : "cursor-crosshair"
+				readonly ? "" : "cursor-crosshair touch-none"
 			}`}
 			style={{ minHeight: 300, userSelect: "none" }}
 		>
@@ -350,7 +429,7 @@ export function AnnotationCanvas({
 
 			{/* 提示 */}
 			{!readonly && !annotationContent.trim() && !draft && (
-				<div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-md bg-black/60 px-3 py-1 text-xs text-white">
+				<div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-md bg-black/60 px-3 py-1 text-center text-xs text-white">
 					{annotationType === "text"
 						? "点击图片添加编号标注"
 						: "长按拖拽添加圈/箭头（拖动距离决定大小，方向决定箭头朝向，松开后锁定）"}

@@ -87,6 +87,45 @@ export const api = {
 			body: blob,
 			headers: { "Content-Type": blob.type || "video/mp4" },
 		}),
+	// 文件上传(multipart/form-data)— 浏览器自动设置 Content-Type 含 boundary
+	postFile: async <T>(path: string, file: File): Promise<T> => {
+		const fd = new FormData();
+		fd.append("file", file);
+		const headers: Record<string, string> = {};
+		const token = getStoredToken();
+		if (token) headers.Authorization = `Bearer ${token}`;
+		const res = await fetch(`${BASE}${path}`, {
+			method: "POST",
+			body: fd,
+			headers,
+		});
+		if (!res.ok) {
+			let msg = `HTTP ${res.status}`;
+			try {
+				const body = await res.json();
+				msg = body.message ?? msg;
+			} catch {}
+			throw new ApiError(res.status, msg);
+		}
+		return res.json() as Promise<T>;
+	},
+	// 下载二进制(模板文件等)— 返回 blob 和文件名
+	downloadBlob: async (
+		path: string,
+	): Promise<{ blob: Blob; filename: string }> => {
+		const headers: Record<string, string> = {};
+		const token = getStoredToken();
+		if (token) headers.Authorization = `Bearer ${token}`;
+		const res = await fetch(`${BASE}${path}`, { headers });
+		if (!res.ok) {
+			throw new ApiError(res.status, `HTTP ${res.status}`);
+		}
+		const blob = await res.blob();
+		const cd = res.headers.get("Content-Disposition") ?? "";
+		const m = /filename="([^"]+)"/.exec(cd);
+		const filename = m ? m[1] : "download";
+		return { blob, filename };
+	},
 	// 视频流式播放：用 blob URL 让 <video> 能带 Range 请求
 	// 注意：fetch 整个 blob 会丢失 Range 流式优势，但 MVP 内存存储可接受
 	// 如需真正的流式播放，可直接用 src=/api/... 但要带 token，故用 blob URL

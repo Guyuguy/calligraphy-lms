@@ -57,13 +57,13 @@ export function Login({ onLogin }: LoginProps) {
 	};
 
 	return (
-		<div className="flex min-h-screen items-center justify-center bg-surface-0 ink-bg p-4">
+		<div className="flex min-h-screen items-center justify-center bg-surface-0 ink-bg p-3 sm:p-4">
 			<div className="w-full max-w-md">
-				<div className="mb-8 text-center">
-					<div className="mb-3 inline-flex size-14 items-center justify-center rounded-2xl brand-gradient text-white shadow-lg">
-						<PenTool className="size-7" />
+				<div className="mb-6 text-center sm:mb-8">
+					<div className="mb-3 inline-flex size-12 items-center justify-center rounded-2xl brand-gradient text-white shadow-lg sm:size-14">
+						<PenTool className="size-6 sm:size-7" />
 					</div>
-					<h1 className="font-serif text-3xl font-semibold text-text-primary">
+					<h1 className="font-serif text-2xl font-semibold text-text-primary sm:text-3xl">
 						墨韵书院
 					</h1>
 					<p className="mt-1 text-sm text-text-muted">硬笔书法教学管理系统</p>

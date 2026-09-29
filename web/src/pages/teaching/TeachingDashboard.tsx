@@ -468,54 +468,97 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 								</CardDescription>
 							</CardHeader>
 							<CardContent>
-								<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead>学生</TableHead>
-											<TableHead>年级</TableHead>
-											<TableHead className="w-40">进度</TableHead>
-											<TableHead>最近活跃</TableHead>
-											<TableHead>状态</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{classProgress.students.map((s) => (
-											<TableRow key={s.student.id}>
-												<TableCell className="font-medium">
-													{s.student.name}
-												</TableCell>
-												<TableCell className="text-text-secondary">
-													{s.profile.grade}
-												</TableCell>
-												<TableCell>
-													<div className="flex items-center gap-2">
-														<Progress
-															value={s.coursePercent}
-															size="sm"
-															color={s.coursePercent < 40 ? "warning" : "brand"}
-														/>
-														<span className="w-10 text-xs text-text-muted">
-															{s.coursePercent}%
-														</span>
-													</div>
-												</TableCell>
-												<TableCell className="text-text-muted">
-													{formatRelativeTime(s.lastActivityAt)}
-												</TableCell>
-												<TableCell>
-													{s.alerts.length > 0 ? (
-														<Badge variant="warning">
-															<AlertTriangle className="size-3" />
-															{s.alerts.length} 提醒
-														</Badge>
-													) : (
-														<Badge variant="success">正常</Badge>
-													)}
-												</TableCell>
+								{/* 平板/桌面：表格 */}
+								<div className="hidden md:block">
+									<Table>
+										<TableHeader>
+											<TableRow>
+												<TableHead>学生</TableHead>
+												<TableHead>年级</TableHead>
+												<TableHead className="w-40">进度</TableHead>
+												<TableHead>最近活跃</TableHead>
+												<TableHead>状态</TableHead>
 											</TableRow>
-										))}
-									</TableBody>
-								</Table>
+										</TableHeader>
+										<TableBody>
+											{classProgress.students.map((s) => (
+												<TableRow key={s.student.id}>
+													<TableCell className="font-medium">
+														{s.student.name}
+													</TableCell>
+													<TableCell className="text-text-secondary">
+														{s.profile.grade}
+													</TableCell>
+													<TableCell>
+														<div className="flex items-center gap-2">
+															<Progress
+																value={s.coursePercent}
+																size="sm"
+																color={
+																	s.coursePercent < 40 ? "warning" : "brand"
+																}
+															/>
+															<span className="w-10 text-xs text-text-muted">
+																{s.coursePercent}%
+															</span>
+														</div>
+													</TableCell>
+													<TableCell className="text-text-muted">
+														{formatRelativeTime(s.lastActivityAt)}
+													</TableCell>
+													<TableCell>
+														{s.alerts.length > 0 ? (
+															<Badge variant="warning">
+																<AlertTriangle className="size-3" />
+																{s.alerts.length} 提醒
+															</Badge>
+														) : (
+															<Badge variant="success">正常</Badge>
+														)}
+													</TableCell>
+												</TableRow>
+											))}
+										</TableBody>
+									</Table>
+								</div>
+
+								{/* 手机：卡片 */}
+								<div className="space-y-2 md:hidden">
+									{classProgress.students.map((s) => (
+										<div
+											key={s.student.id}
+											className="rounded-md border border-border bg-surface-1 p-3"
+										>
+											<div className="flex items-center justify-between gap-2">
+												<div className="font-medium">{s.student.name}</div>
+												{s.alerts.length > 0 ? (
+													<Badge variant="warning" className="shrink-0">
+														<AlertTriangle className="size-3" />
+														{s.alerts.length} 提醒
+													</Badge>
+												) : (
+													<Badge variant="success" className="shrink-0">
+														正常
+													</Badge>
+												)}
+											</div>
+											<div className="mt-1 text-xs text-text-muted">
+												{s.profile.grade} ·{" "}
+												{formatRelativeTime(s.lastActivityAt)}
+											</div>
+											<div className="mt-2 flex items-center gap-2">
+												<Progress
+													value={s.coursePercent}
+													size="sm"
+													color={s.coursePercent < 40 ? "warning" : "brand"}
+												/>
+												<span className="w-10 text-xs text-text-muted">
+													{s.coursePercent}%
+												</span>
+											</div>
+										</div>
+									))}
+								</div>
 							</CardContent>
 						</Card>
 					)}
@@ -633,7 +676,7 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 
 			{/* 批改对话框 */}
 			<Dialog open={!!reviewing} onOpenChange={(o) => !o && setReviewing(null)}>
-				<DialogContent className="max-w-4xl">
+				<DialogContent className="sm:max-w-4xl">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
 							<PenTool className="size-4 text-brand" />
@@ -730,7 +773,7 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 											placeholder="标注内容（可选，如：起笔藏锋不到位）"
 											value={annotationContent}
 											onChange={(e) => setAnnotationContent(e.target.value)}
-											className="flex-1"
+											className="min-w-40 flex-1"
 										/>
 									</div>
 									{/* 标注列表 */}

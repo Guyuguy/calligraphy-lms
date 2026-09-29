@@ -230,15 +230,15 @@ function RecommendationCard({
 		<button
 			type="button"
 			onClick={onClick}
-			className="flex w-full items-start gap-4 rounded-lg border border-border bg-surface-1 p-4 text-left transition-all hover:border-brand hover:bg-surface-2"
+			className="flex w-full items-start gap-3 rounded-lg border border-border bg-surface-1 p-3 text-left transition-all hover:border-brand hover:bg-surface-2 sm:gap-4 sm:p-4"
 		>
-			<div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand/10 font-serif text-base font-semibold text-brand">
+			<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand/10 font-serif text-sm font-semibold text-brand sm:size-10 sm:text-base">
 				#{rank}
 			</div>
 			<img
 				src={c.cover}
 				alt=""
-				className="size-20 shrink-0 rounded-md object-cover"
+				className="hidden size-16 shrink-0 rounded-md object-cover sm:block sm:size-20"
 			/>
 			<div className="flex-1">
 				<div className="flex items-start justify-between gap-3">

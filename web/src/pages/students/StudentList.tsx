@@ -126,76 +126,134 @@ export function StudentList({ user, navigate }: StudentListProps) {
 							暂无学生
 						</div>
 					) : (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>姓名</TableHead>
-									<TableHead>年级</TableHead>
-									<TableHead>学校</TableHead>
-									<TableHead>当前阶段</TableHead>
-									<TableHead>水平</TableHead>
-									<TableHead>学习目标</TableHead>
-									<TableHead>累计练习</TableHead>
-									<TableHead>连续打卡</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{filtered.map((row) => (
-									<TableRow
-										key={row.user.id}
-										className="cursor-pointer"
-										onClick={() => navigate(`/students/${row.user.id}`)}
-									>
-										<TableCell>
-											<div className="flex items-center gap-2">
-												<div className="flex size-8 items-center justify-center rounded-full bg-brand/10 text-brand">
-													<GraduationCap className="size-4" />
-												</div>
-												<div>
-													<div className="font-medium">{row.user.name}</div>
-													<div className="text-xs text-text-muted">
-														@{row.user.username}
+						<>
+							{/* 平板/桌面：表格 */}
+							<div className="hidden md:block">
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>姓名</TableHead>
+											<TableHead>年级</TableHead>
+											<TableHead>学校</TableHead>
+											<TableHead>当前阶段</TableHead>
+											<TableHead>水平</TableHead>
+											<TableHead>学习目标</TableHead>
+											<TableHead>累计练习</TableHead>
+											<TableHead>连续打卡</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{filtered.map((row) => (
+											<TableRow
+												key={row.user.id}
+												className="cursor-pointer"
+												onClick={() => navigate(`/students/${row.user.id}`)}
+											>
+												<TableCell>
+													<div className="flex items-center gap-2">
+														<div className="flex size-8 items-center justify-center rounded-full bg-brand/10 text-brand">
+															<GraduationCap className="size-4" />
+														</div>
+														<div>
+															<div className="font-medium">{row.user.name}</div>
+															<div className="text-xs text-text-muted">
+																@{row.user.username}
+															</div>
+														</div>
 													</div>
+												</TableCell>
+												<TableCell>{row.profile?.grade ?? "-"}</TableCell>
+												<TableCell className="text-text-secondary">
+													{row.profile?.school ?? "-"}
+												</TableCell>
+												<TableCell>
+													<Badge variant="secondary">
+														{row.profile
+															? STAGE_LABELS[row.profile.currentStage]
+															: "-"}
+													</Badge>
+												</TableCell>
+												<TableCell>
+													{row.profile
+														? LEVEL_LABELS[row.profile.currentLevel]
+														: "-"}
+												</TableCell>
+												<TableCell className="text-text-secondary">
+													{row.profile
+														? goalLabel(row.profile.learningGoal)
+														: "-"}
+												</TableCell>
+												<TableCell className="text-text-secondary">
+													{row.profile
+														? `${Math.round(row.profile.totalPracticeMinutes / 60)} 小时`
+														: "-"}
+												</TableCell>
+												<TableCell>
+													{row.profile && row.profile.streakDays > 0 ? (
+														<Badge variant="success">
+															{row.profile.streakDays} 天
+														</Badge>
+													) : (
+														<span className="text-text-muted">-</span>
+													)}
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
+
+							{/* 手机：卡片列表 */}
+							<div className="space-y-2 md:hidden">
+								{filtered.map((row) => (
+									<button
+										key={row.user.id}
+										type="button"
+										onClick={() => navigate(`/students/${row.user.id}`)}
+										className="flex w-full items-start gap-3 rounded-md border border-border bg-surface-1 p-3 text-left transition-colors hover:bg-surface-2"
+									>
+										<div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand">
+											<GraduationCap className="size-5" />
+										</div>
+										<div className="min-w-0 flex-1">
+											<div className="flex items-center justify-between gap-2">
+												<div className="truncate font-medium">
+													{row.user.name}
 												</div>
+												{row.profile && row.profile.streakDays > 0 && (
+													<Badge variant="success" className="shrink-0">
+														{row.profile.streakDays} 天
+													</Badge>
+												)}
 											</div>
-										</TableCell>
-										<TableCell>{row.profile?.grade ?? "-"}</TableCell>
-										<TableCell className="text-text-secondary">
-											{row.profile?.school ?? "-"}
-										</TableCell>
-										<TableCell>
-											<Badge variant="secondary">
-												{row.profile
-													? STAGE_LABELS[row.profile.currentStage]
-													: "-"}
-											</Badge>
-										</TableCell>
-										<TableCell>
-											{row.profile
-												? LEVEL_LABELS[row.profile.currentLevel]
-												: "-"}
-										</TableCell>
-										<TableCell className="text-text-secondary">
-											{row.profile ? goalLabel(row.profile.learningGoal) : "-"}
-										</TableCell>
-										<TableCell className="text-text-secondary">
-											{row.profile
-												? `${Math.round(row.profile.totalPracticeMinutes / 60)} 小时`
-												: "-"}
-										</TableCell>
-										<TableCell>
-											{row.profile && row.profile.streakDays > 0 ? (
-												<Badge variant="success">
-													{row.profile.streakDays} 天
-												</Badge>
-											) : (
-												<span className="text-text-muted">-</span>
+											<div className="text-xs text-text-muted">
+												@{row.user.username}
+											</div>
+											<div className="mt-1.5 flex flex-wrap gap-1.5 text-xs">
+												{row.profile && (
+													<Badge variant="secondary">
+														{STAGE_LABELS[row.profile.currentStage]} ·{" "}
+														{LEVEL_LABELS[row.profile.currentLevel]}
+													</Badge>
+												)}
+												{row.profile?.grade && (
+													<span className="text-text-muted">
+														{row.profile.grade}
+													</span>
+												)}
+											</div>
+											{row.profile && (
+												<div className="mt-1 text-xs text-text-muted">
+													{goalLabel(row.profile.learningGoal)} ·{" "}
+													{Math.round(row.profile.totalPracticeMinutes / 60)}{" "}
+													小时
+												</div>
 											)}
-										</TableCell>
-									</TableRow>
+										</div>
+									</button>
 								))}
-							</TableBody>
-						</Table>
+							</div>
+						</>
 					)}
 				</CardContent>
 			</Card>

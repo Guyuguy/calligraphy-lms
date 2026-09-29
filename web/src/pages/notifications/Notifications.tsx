@@ -48,11 +48,11 @@ export function Notifications() {
 	};
 
 	return (
-		<div className="mx-auto max-w-3xl space-y-4 p-6">
-			<div className="flex items-center justify-between">
+		<div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<div className="flex items-center gap-2">
 					<Bell className="size-5 text-brand" />
-					<h1 className="font-serif text-2xl">通知中心</h1>
+					<h1 className="font-serif text-xl sm:text-2xl">通知中心</h1>
 				</div>
 				<div className="flex items-center gap-2">
 					<div className="flex rounded-md border border-border">

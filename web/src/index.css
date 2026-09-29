@@ -85,11 +85,32 @@
 		color: var(--color-text-primary);
 		font-family: var(--font-sans);
 		-webkit-font-smoothing: antialiased;
+		/* 防止 iOS 横屏时字体放大 */
+		-webkit-text-size-adjust: 100%;
+		text-size-adjust: 100%;
 	}
 	*,
 	::before,
 	::after {
 		border-color: var(--color-border);
+	}
+	/* 输入框字体大小 ≥ 16px 防止 iOS 聚焦自动放大 */
+	input,
+	textarea,
+	select {
+		font-size: 16px;
+	}
+	@media (min-width: 640px) {
+		input,
+		textarea,
+		select {
+			font-size: 14px;
+		}
+	}
+	/* 触摸滚动优化 */
+	.touch-scroll {
+		-webkit-overflow-scrolling: touch;
+		overscroll-behavior: contain;
 	}
 }
 

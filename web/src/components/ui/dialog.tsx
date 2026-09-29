@@ -32,13 +32,17 @@ export function DialogContent({
 			<DialogOverlay />
 			<DialogPrimitive.Content
 				className={cn(
-					"fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border bg-card p-6 shadow-lg rounded-xl max-h-[90vh] overflow-y-auto",
+					"fixed z-50 grid gap-4 border bg-card shadow-lg",
+					// 移动端：全屏
+					"inset-0 h-full w-full max-h-full translate-x-0 translate-y-0 rounded-none p-4 overflow-y-auto",
+					// sm+：居中对话框
+					"sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:p-6 sm:overflow-y-auto",
 					className,
 				)}
 				{...props}
 			>
 				{children}
-				<DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 transition-opacity">
+				<DialogPrimitive.Close className="absolute right-3 top-3 rounded-sm opacity-70 hover:opacity-100 transition-opacity sm:right-4 sm:top-4">
 					<X className="size-4" />
 					<span className="sr-only">关闭</span>
 				</DialogPrimitive.Close>
