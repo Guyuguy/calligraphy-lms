@@ -87,6 +87,23 @@ export const api = {
 			body: blob,
 			headers: { "Content-Type": blob.type || "video/mp4" },
 		}),
+	postImage: <T>(path: string, blob: Blob) =>
+		request<T>(path, {
+			method: "POST",
+			body: blob,
+			headers: { "Content-Type": blob.type || "image/jpeg" },
+		}),
+	getImageBlob: async (path: string): Promise<string> => {
+		const headers: Record<string, string> = {};
+		const token = getStoredToken();
+		if (token) headers.Authorization = `Bearer ${token}`;
+		const res = await fetch(`${BASE}${path}`, { headers });
+		if (!res.ok) {
+			throw new ApiError(res.status, `HTTP ${res.status}`);
+		}
+		const blob = await res.blob();
+		return URL.createObjectURL(blob);
+	},
 	// 文件上传(multipart/form-data)— 浏览器自动设置 Content-Type 含 boundary
 	postFile: async <T>(path: string, file: File): Promise<T> => {
 		const fd = new FormData();
@@ -537,6 +554,73 @@ export interface Annotation {
 	angle?: number; // 箭头旋转角度（度），0 = 向右
 }
 
+// ============================================================
+// 作品集（M7）
+// ============================================================
+
+export interface Artwork {
+	id: string;
+	studentId: string;
+	title: string;
+	imageUrl: string;
+	createdAt: string;
+	isFeatured: boolean;
+	submissionId?: string;
+	annotationsCount?: number;
+}
+
+export interface ArtworkDetail extends Artwork {
+	studentName: string;
+	studentAvatar?: string;
+	studentProfile?: StudentProfile;
+	annotations: Annotation[];
+	linkedSubmission: {
+		id: string;
+		assignmentTitle: string;
+		courseTitle: string;
+		score: number | null;
+		teacherComment?: string;
+		submittedAt: string;
+	} | null;
+}
+
+export interface TimelineItem {
+	id: string;
+	kind: "artwork" | "submission";
+	title: string;
+	imageUrl: string;
+	createdAt: string;
+	isFeatured: boolean;
+	annotationsCount: number;
+	linkedSubmission?: {
+		id: string;
+		assignmentTitle: string;
+		courseTitle: string;
+		score: number | null;
+	};
+}
+
+export interface TimelineResponse {
+	studentId: string;
+	items: TimelineItem[];
+}
+
+export interface FeaturedArtwork extends Artwork {
+	studentName: string;
+	studentAvatar?: string;
+}
+
+export interface FeaturedResponse {
+	total: number;
+	artworks: FeaturedArtwork[];
+}
+
+export interface ArtworkListResponse {
+	studentId: string;
+	total: number;
+	artworks: Artwork[];
+}
+
 export interface SubmissionDetailFull {
 	submission: SubmissionListItem & {
 		teacherAudioUrl?: string;
@@ -654,6 +738,101 @@ export interface ParentChild {
 export interface ParentChildrenResponse {
 	parentId: string;
 	children: ParentChild[];
+}
+
+// ============================================================
+// 工作台待办 (M7+)
+// ============================================================
+
+export interface DashboardTodayClass {
+	id: string;
+	courseId: string;
+	courseTitle: string;
+	teacherName?: string;
+	startHour: number;
+	endHour: number;
+	mode: ScheduleMode;
+	studentCount?: number;
+}
+
+export interface DashboardUpcomingAssignment {
+	id: string;
+	courseId: string;
+	courseTitle: string;
+	title: string;
+	dueAt: string;
+}
+
+export interface DashboardNextUnit {
+	courseId: string;
+	courseTitle: string;
+	unitId: string;
+	unitTitle: string;
+	percent: number;
+}
+
+export interface StudentTodosResponse {
+	studentId: string;
+	todayClasses: DashboardTodayClass[];
+	upcomingAssignments: DashboardUpcomingAssignment[];
+	nextUnit: DashboardNextUnit | null;
+	enrolledCourseCount: number;
+	streakDays: number;
+}
+
+export interface DashboardPendingReview {
+	id: string;
+	assignmentTitle: string;
+	courseTitle: string;
+	studentName: string;
+	submittedAt: string;
+}
+
+export interface TeacherTodosResponse {
+	teacherId: string;
+	todayClasses: DashboardTodayClass[];
+	pendingReviews: DashboardPendingReview[];
+	pendingReviewsTotal: number;
+}
+
+export interface ParentChildTodos {
+	childId: string;
+	childName: string;
+	todayClasses: DashboardTodayClass[];
+	upcomingAssignments: DashboardUpcomingAssignment[];
+	summary: ProgressOverview["summary"] | null;
+}
+
+export interface DashboardPendingPayment {
+	id: string;
+	title: string;
+	amount: number;
+	dueAt: string;
+	status: "pending" | "paid" | "overdue";
+}
+
+export interface ParentTodosResponse {
+	parentId: string;
+	children: ParentChildTodos[];
+	pendingPayments: DashboardPendingPayment[];
+}
+
+export interface DashboardUnreadNotification {
+	id: string;
+	type: NotificationType;
+	title: string;
+	body: string;
+	createdAt: string;
+}
+
+export interface AdminTodosResponse {
+	adminId: string;
+	systemOverview: {
+		totalStudents: number;
+		totalTeachers: number;
+		totalCourses: number;
+	};
+	unreadNotifications: DashboardUnreadNotification[];
 }
 
 // ============================================================

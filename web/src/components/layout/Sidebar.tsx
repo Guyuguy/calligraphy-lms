@@ -4,6 +4,7 @@ import {
 	Calendar,
 	GraduationCap,
 	HeartHandshake,
+	Images,
 	LayoutDashboard,
 	Menu,
 	PenTool,
@@ -49,6 +50,12 @@ const NAV_ITEMS: NavItem[] = [
 		path: "/progress",
 		icon: BarChart3,
 		roles: ["student", "parent", "teacher"],
+	},
+	{
+		label: "作品集",
+		path: "/portfolio",
+		icon: Images,
+		roles: ["student", "parent", "teacher", "academic_head", "admin"],
 	},
 	{
 		label: "家长中心",

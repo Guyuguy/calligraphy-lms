@@ -50,6 +50,12 @@ export const audioRecords = new Map<
 	{ mime: string; data: Uint8Array }
 >();
 
+// 作品图片存储（MVP 内存存储，生产环境应使用对象存储/文件系统）
+export const imageRecords = new Map<
+	string,
+	{ mime: string; data: Uint8Array }
+>();
+
 // 视频文件存储（MVP 内存存储，生产环境应使用对象存储/文件系统）
 export const videoRecords = new Map<
 	string,

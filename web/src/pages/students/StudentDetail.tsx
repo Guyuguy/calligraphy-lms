@@ -5,16 +5,22 @@ import {
 	Flame,
 	GraduationCap,
 	Mail,
+	MessageSquare,
 	Phone,
+	Upload,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
+	type Artwork,
+	type ArtworkListResponse,
 	api,
 	type Course,
 	LEVEL_LABELS,
 	STAGE_LABELS,
 	STYLE_LABELS,
 	type StudentProfile,
+	type TimelineItem,
+	type TimelineResponse,
 	type User,
 } from "@/api/client";
 import { SkillRadarChart } from "@/components/domain/SkillRadar";
@@ -30,6 +36,8 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArtworkDetailDialog } from "@/pages/portfolio/ArtworkDetailDialog";
+import { ArtworkUploader } from "@/pages/portfolio/ArtworkUploader";
 
 interface StudentDetailProps {
 	id: string;
@@ -37,11 +45,24 @@ interface StudentDetailProps {
 	navigate: (p: string) => void;
 }
 
-export function StudentDetail({ id, navigate }: StudentDetailProps) {
+export function StudentDetail({ id, user, navigate }: StudentDetailProps) {
 	const [student, setStudent] = useState<User | null>(null);
 	const [profile, setProfile] = useState<StudentProfile | null>(null);
 	const [courses, setCourses] = useState<Course[]>([]);
+	const [artworks, setArtworks] = useState<Artwork[]>([]);
+	const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+	const [refreshKey, setRefreshKey] = useState(0);
+	const [selectedArtworkId, setSelectedArtworkId] = useState<string | null>(
+		null,
+	);
+	const [uploaderOpen, setUploaderOpen] = useState(false);
 
+	const canEdit = ["teacher", "academic_head", "admin"].includes(user.role);
+	const canUpload = user.role === "student" || canEdit;
+	const canDeleteArtwork = user.role === "student" || canEdit;
+	const annotationReadonly = !canEdit;
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: refreshKey 触发上传/删除后刷新
 	useEffect(() => {
 		api
 			.get<{ user: User; profile: StudentProfile | null }>(`/users/${id}`)
@@ -52,7 +73,15 @@ export function StudentDetail({ id, navigate }: StudentDetailProps) {
 		api
 			.get<{ courses: Course[] }>("/courses")
 			.then((r) => setCourses(r.courses));
-	}, [id]);
+		api
+			.get<ArtworkListResponse>(`/portfolios/${id}/artworks`)
+			.then((r) => setArtworks(r.artworks))
+			.catch(() => setArtworks([]));
+		api
+			.get<TimelineResponse>(`/portfolios/${id}/timeline`)
+			.then((r) => setTimeline(r.items))
+			.catch(() => setTimeline([]));
+	}, [id, refreshKey]);
 
 	if (!student || !profile) {
 		return (
@@ -188,60 +217,114 @@ export function StudentDetail({ id, navigate }: StudentDetailProps) {
 								</div>
 							))}
 						</TabsContent>
-						<TabsContent
-							value="artworks"
-							className="grid grid-cols-2 gap-3 sm:grid-cols-3"
-						>
-							{[1, 2, 3, 4, 5, 6].map((i) => (
-								<div
-									key={i}
-									className="aspect-[3/4] overflow-hidden rounded-md border border-border bg-surface-2"
-								>
-									<img
-										src={`https://placehold.co/300x400/efeee9/c96442?text=作品+${i}`}
-										alt=""
-										className="size-full object-cover"
-									/>
+						<TabsContent value="artworks" className="space-y-3">
+							{canUpload && (
+								<div className="flex justify-end">
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={() => setUploaderOpen(true)}
+									>
+										<Upload className="size-4" />
+										上传作品
+									</Button>
 								</div>
-							))}
+							)}
+							{artworks.length === 0 ? (
+								<div className="rounded-md border border-border bg-surface-1 p-6 text-center text-text-muted text-sm">
+									暂无作品
+								</div>
+							) : (
+								<div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+									{artworks.map((a) => (
+										<button
+											key={a.id}
+											type="button"
+											onClick={() => setSelectedArtworkId(a.id)}
+											className="group overflow-hidden rounded-md border border-border bg-surface-1 text-left transition-all hover:border-brand/40 hover:shadow-md"
+										>
+											<div className="aspect-[3/4] overflow-hidden bg-surface-2">
+												{a.imageUrl ? (
+													<img
+														src={a.imageUrl}
+														alt={a.title}
+														className="size-full object-cover transition-transform group-hover:scale-105"
+													/>
+												) : (
+													<div className="flex size-full items-center justify-center text-xs text-text-muted">
+														无图
+													</div>
+												)}
+											</div>
+											<div className="p-2">
+												<div className="truncate text-sm font-medium">
+													{a.title}
+												</div>
+												<div className="mt-0.5 text-xs text-text-muted">
+													{new Date(a.createdAt).toLocaleDateString("zh-CN")}
+													{a.isFeatured && " · 精选"}
+												</div>
+											</div>
+										</button>
+									))}
+								</div>
+							)}
 						</TabsContent>
 						<TabsContent value="history" className="space-y-2">
-							{[
-								{
-									date: "2026-09-27",
-									action: "完成《永字八法》第 4 节",
-									minutes: 45,
-								},
-								{
-									date: "2026-09-26",
-									action: "提交作业 — 横画练习",
-									minutes: 30,
-								},
-								{
-									date: "2026-09-25",
-									action: "观看视频 — 竖画示范",
-									minutes: 25,
-								},
-								{
-									date: "2026-09-24",
-									action: "完成《永字八法》第 3 节",
-									minutes: 50,
-								},
-							].map((h) => (
-								<div
-									key={`${h.date}-${h.action}`}
-									className="flex items-center justify-between rounded-md border border-border bg-surface-1 px-3 py-2 text-sm"
-								>
-									<span>{h.action}</span>
-									<span className="text-text-muted">
-										{h.date} · {h.minutes} 分钟
-									</span>
+							{timeline.length === 0 ? (
+								<div className="rounded-md border border-border bg-surface-1 p-6 text-center text-text-muted text-sm">
+									暂无学习历史
 								</div>
-							))}
+							) : (
+								timeline.map((h) => (
+									<button
+										key={`${h.kind}-${h.id}`}
+										type="button"
+										onClick={() => setSelectedArtworkId(h.id)}
+										className="flex w-full items-center justify-between rounded-md border border-border bg-surface-1 px-3 py-2 text-sm transition-colors hover:border-brand/40 hover:bg-surface-2"
+									>
+										<span className="flex items-center gap-2">
+											{h.imageUrl && (
+												<img
+													src={h.imageUrl}
+													alt=""
+													className="size-8 rounded object-cover"
+												/>
+											)}
+											<span className="truncate">{h.title}</span>
+											<Badge variant="outline">
+												{h.kind === "artwork" ? "作品" : "作业"}
+											</Badge>
+											{h.annotationsCount > 0 && (
+												<span className="flex items-center gap-0.5 text-xs text-text-muted">
+													<MessageSquare className="size-3" />
+													{h.annotationsCount}
+												</span>
+											)}
+										</span>
+										<span className="text-text-muted">
+											{new Date(h.createdAt).toLocaleDateString("zh-CN")}
+										</span>
+									</button>
+								))
+							)}
 						</TabsContent>
 					</Tabs>
 				</div>
 			</div>
+			<ArtworkDetailDialog
+				artworkId={selectedArtworkId}
+				readonly={annotationReadonly}
+				canDelete={canDeleteArtwork}
+				onClose={() => setSelectedArtworkId(null)}
+				onChanged={() => setRefreshKey((k) => k + 1)}
+			/>
+			<ArtworkUploader
+				open={uploaderOpen}
+				studentId={id}
+				onOpenChange={setUploaderOpen}
+				onUploaded={() => setRefreshKey((k) => k + 1)}
+			/>
 		</PageContainer>
 	);
 }
