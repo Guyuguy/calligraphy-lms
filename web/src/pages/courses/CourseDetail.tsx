@@ -15,6 +15,10 @@ import {
 	api,
 	type Course,
 	LEVEL_LABELS,
+	type Order,
+	type ParentChild,
+	type ParentChildrenResponse,
+	type PaymentMethodsResponse,
 	STAGE_LABELS,
 	STYLE_LABELS,
 	type TeacherProfile,
@@ -32,6 +36,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { PaymentDialog } from "@/pages/payment/PaymentDialog";
 
 interface CourseDetailProps {
 	id: string;
@@ -73,11 +78,46 @@ export function CourseDetail({ id, user, navigate }: CourseDetailProps) {
 		null,
 	);
 	const [editorOpen, setEditorOpen] = useState(false);
+	const [payMethods, setPayMethods] = useState<PaymentMethodsResponse | null>(
+		null,
+	);
+	const [payChannel, setPayChannel] = useState<"wechat" | "alipay">("wechat");
+	const [payDialog, setPayDialog] = useState<{
+		orderNo: string;
+		codeUrl: string;
+		amount: number;
+		title: string;
+	} | null>(null);
+	const [children, setChildren] = useState<ParentChild[]>([]);
+	const [selectedChildId, setSelectedChildId] = useState<string>("");
 
 	const canManage =
 		user.role === "admin" ||
 		user.role === "academic_head" ||
 		user.role === "teacher";
+
+	// 是否显示购买按钮(学生本人或家长为孩子买)
+	const canBuy = user.role === "student" || user.role === "parent";
+
+	// 加载支付方式
+	useEffect(() => {
+		api
+			.get<PaymentMethodsResponse>("/payments/methods")
+			.then(setPayMethods)
+			.catch(() => setPayMethods({ mock: true, wechat: false, alipay: false }));
+	}, []);
+
+	// 家长加载子女列表
+	useEffect(() => {
+		if (user.role !== "parent") return;
+		api
+			.get<ParentChildrenResponse>("/parent/children")
+			.then((res) => {
+				setChildren(res.children);
+				setSelectedChildId(res.children[0]?.user?.id ?? "");
+			})
+			.catch(() => setChildren([]));
+	}, [user.role]);
 
 	const loadCourse = () => {
 		api
@@ -313,17 +353,102 @@ export function CourseDetail({ id, user, navigate }: CourseDetailProps) {
 						</CardContent>
 					</Card>
 
-					{user.role === "student" && (
+					{canBuy && (
+						<div className="space-y-2">
+							{user.role === "parent" && children.length > 0 && (
+								<div>
+									<label
+										htmlFor="child-select"
+										className="mb-1 block text-xs text-text-muted"
+									>
+										为哪位子女购买
+									</label>
+									<select
+										id="child-select"
+										value={selectedChildId}
+										onChange={(e) => setSelectedChildId(e.target.value)}
+										className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm"
+									>
+										{children.map((c) => (
+											<option key={c.user?.id} value={c.user?.id ?? ""}>
+												{c.user?.name ?? "未知"}
+											</option>
+										))}
+									</select>
+								</div>
+							)}
+							<div className="flex gap-2">
+								<Button
+									variant={payChannel === "wechat" ? "default" : "outline"}
+									className="flex-1"
+									onClick={() => setPayChannel("wechat")}
+								>
+									微信支付
+								</Button>
+								<Button
+									variant={payChannel === "alipay" ? "default" : "outline"}
+									className="flex-1"
+									onClick={() => setPayChannel("alipay")}
+								>
+									支付宝
+								</Button>
+							</div>
+							<Button
+								className="w-full"
+								size="lg"
+								disabled={user.role === "parent" && !selectedChildId}
+								onClick={async () => {
+									try {
+										const res = await api.post<{
+											order: Order;
+											codeUrl: string;
+										}>("/payments/orders", {
+											payableType: "course",
+											payableRef: { courseId: course.id },
+											channel: payChannel,
+											studentId:
+												user.role === "parent" ? selectedChildId : user.id,
+										});
+										setPayDialog({
+											orderNo: res.order.orderNo,
+											codeUrl: res.codeUrl,
+											amount: res.order.amount,
+											title: res.order.title,
+										});
+									} catch (err) {
+										console.error("[enroll] 下单失败:", err);
+										alert("下单失败,请稍后重试");
+									}
+								}}
+							>
+								立即购买 ¥{course.price}
+							</Button>
+							{payMethods?.mock && (
+								<p className="text-center text-xs text-text-muted">
+									开发模式: 点击"模拟支付成功"按钮即可完成支付
+								</p>
+							)}
+						</div>
+					)}
+					{canManage && (
 						<Button
 							className="w-full"
 							size="lg"
+							variant="outline"
 							onClick={() => {
 								api
 									.post(`/courses/${course.id}/enroll`)
-									.then(() => alert("选课成功！"));
+									.then(() => {
+										alert("代报名成功!");
+										loadCourse();
+									})
+									.catch((err) => {
+										console.error("[enroll] 代报名失败:", err);
+										alert("代报名失败");
+									});
 							}}
 						>
-							立即选课
+							管理员代报名(免费)
 						</Button>
 					)}
 				</div>
@@ -337,6 +462,23 @@ export function CourseDetail({ id, user, navigate }: CourseDetailProps) {
 					existing={course}
 					onSaved={() => {
 						setEditorOpen(false);
+						loadCourse();
+					}}
+				/>
+			)}
+
+			{payDialog && (
+				<PaymentDialog
+					open={true}
+					orderNo={payDialog.orderNo}
+					codeUrl={payDialog.codeUrl}
+					channel={payChannel}
+					amount={payDialog.amount}
+					title={payDialog.title}
+					mock={payMethods?.mock ?? true}
+					onClose={() => setPayDialog(null)}
+					onSuccess={() => {
+						setPayDialog(null);
 						loadCourse();
 					}}
 				/>

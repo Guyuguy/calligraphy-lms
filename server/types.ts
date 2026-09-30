@@ -282,6 +282,38 @@ export interface Payment {
 	status: "pending" | "paid" | "overdue";
 	createdAt: string;
 	paidAt?: string;
+	// 支付集成扩展字段
+	payableType?: "course" | "manual_bill";
+	payableRef?: { courseId?: string; courseTitle?: string };
+	method?: "wechat" | "alipay" | "manual";
+	transactionId?: string;
+}
+
+// ============================================================
+// 订单(支付下单记录)
+// ============================================================
+
+export interface Order {
+	id: string; // order_xxx
+	orderNo: string; // 业务订单号(给支付平台)
+	userId: string; // 下单人(学生本人或家长)
+	studentId: string; // 入学的学生
+	role: string; // 下单人角色
+	payableType: "course" | "manual_bill";
+	payableRef: {
+		courseId?: string;
+		courseTitle?: string;
+		paymentId?: string;
+	};
+	amount: number; // 单位: 元
+	title: string;
+	channel: "wechat" | "alipay";
+	status: "pending" | "paid" | "failed" | "refunded";
+	codeUrl?: string; // 微信 code_url 或支付宝 qr_code
+	transactionId?: string;
+	createdAt: string;
+	paidAt?: string;
+	expireAt: string; // 2 小时过期
 }
 
 // ============================================================

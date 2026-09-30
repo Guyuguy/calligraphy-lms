@@ -705,12 +705,62 @@ export interface Payment {
 	status: "pending" | "paid" | "overdue";
 	createdAt: string;
 	paidAt?: string;
+	// 支付集成扩展字段
+	payableType?: "course" | "manual_bill";
+	payableRef?: { courseId?: string; courseTitle?: string };
+	method?: "wechat" | "alipay" | "manual";
+	transactionId?: string;
 }
 
 export interface PaymentsResponse {
 	parentId: string;
 	count: number;
 	payments: Payment[];
+}
+
+// ============================================================
+// 支付订单
+// ============================================================
+
+export interface Order {
+	id: string;
+	orderNo: string;
+	userId: string;
+	studentId: string;
+	role: string;
+	payableType: "course" | "manual_bill";
+	payableRef: {
+		courseId?: string;
+		courseTitle?: string;
+		paymentId?: string;
+	};
+	amount: number;
+	title: string;
+	channel: "wechat" | "alipay";
+	status: "pending" | "paid" | "failed" | "refunded";
+	codeUrl?: string;
+	transactionId?: string;
+	createdAt: string;
+	paidAt?: string;
+	expireAt: string;
+}
+
+export interface CreateOrderRequest {
+	payableType: "course" | "manual_bill";
+	payableRef: { courseId?: string; paymentId?: string };
+	channel: "wechat" | "alipay";
+	studentId?: string;
+}
+
+export interface CreateOrderResponse {
+	order: Order;
+	codeUrl: string;
+}
+
+export interface PaymentMethodsResponse {
+	mock: boolean;
+	wechat: boolean;
+	alipay: boolean;
 }
 
 export interface Evaluation {

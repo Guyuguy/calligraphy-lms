@@ -13,6 +13,7 @@
 		"check:fix": "biome check --fix ."
 	},
 	"dependencies": {
+		"alipay-sdk": "^4.14.0",
 		"hono": "^4.12.15",
 		"mammoth": "^1.13.0",
 		"xlsx": "^0.18.5"

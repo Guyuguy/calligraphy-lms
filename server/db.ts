@@ -10,6 +10,7 @@ import type {
 	Evaluation,
 	Level,
 	Notification,
+	Order,
 	ParentProfile,
 	Payment,
 	PracticeDay,
@@ -45,6 +46,9 @@ export const annotations = new Map<string, Annotation>();
 export const evaluations = new Map<string, Evaluation>();
 export const notifications = new Map<string, Notification>();
 export const payments = new Map<string, Payment>();
+
+// 支付订单(下单记录,支付成功后转为 Payment 或直接 enroll)
+export const orders = new Map<string, Order>();
 export const audioRecords = new Map<
 	string,
 	{ mime: string; data: Uint8Array }

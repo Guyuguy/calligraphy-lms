@@ -7,6 +7,7 @@ import { coursesRouter } from "./routes/courses";
 import { dashboardRouter } from "./routes/dashboard";
 import { notificationsRouter } from "./routes/notifications";
 import { parentRouter } from "./routes/parent";
+import { paymentsRouter } from "./routes/payments";
 import { portfolioRouter } from "./routes/portfolio";
 import { progressRouter } from "./routes/progress";
 import { recommendationsRouter } from "./routes/recommendations";
@@ -42,6 +43,7 @@ app.route("/api/teaching", teachingRouter);
 app.route("/api/submissions", submissionsRouter);
 app.route("/api/notifications", notificationsRouter);
 app.route("/api/parent", parentRouter);
+app.route("/api/payments", paymentsRouter);
 app.route("/api/portfolios", portfolioRouter);
 app.route("/api/dashboard", dashboardRouter);
 

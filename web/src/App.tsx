@@ -13,6 +13,7 @@ import { ChildProgress } from "@/pages/parent/ChildProgress";
 import { Evaluations } from "@/pages/parent/Evaluations";
 import { ParentDashboard } from "@/pages/parent/ParentDashboard";
 import { Payments } from "@/pages/parent/Payments";
+import { Checkout } from "@/pages/payment/Checkout";
 import { Portfolio } from "@/pages/portfolio/Portfolio";
 import { ProgressView } from "@/pages/progress/ProgressView";
 import { ScheduleView } from "@/pages/schedule/ScheduleView";
@@ -166,6 +167,11 @@ function Router({ path, user, navigate }: RouterProps) {
 			/>
 		);
 	if (path === "/parent/payments") return <Payments user={user} />;
+	if (path.startsWith("/checkout")) {
+		const params = new URLSearchParams(path.split("?")[1] ?? "");
+		const courseId = params.get("courseId") ?? "";
+		return <Checkout user={user} courseId={courseId} navigate={navigate} />;
+	}
 	if (path === "/parent/evaluations") return <Evaluations />;
 	return <NotFound />;
 }

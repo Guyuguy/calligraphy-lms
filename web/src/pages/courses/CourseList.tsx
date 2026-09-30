@@ -14,6 +14,8 @@ import {
 	type Course,
 	LEVEL_LABELS,
 	type Level,
+	type Order,
+	type PaymentMethodsResponse,
 	STAGE_LABELS,
 	STYLE_LABELS,
 	type Stage,
@@ -34,6 +36,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { ChannelPicker } from "@/pages/payment/ChannelPicker";
+import { PaymentDialog } from "@/pages/payment/PaymentDialog";
 
 interface CourseListProps {
 	user: User;
@@ -49,11 +53,58 @@ export function CourseList({ user, navigate }: CourseListProps) {
 	const [style, setStyle] = useState<string>("all");
 	const [editorOpen, setEditorOpen] = useState(false);
 	const [importOpen, setImportOpen] = useState(false);
+	const [payMethods, setPayMethods] = useState<PaymentMethodsResponse | null>(
+		null,
+	);
+	const [pickerFor, setPickerFor] = useState<Course | null>(null);
+	const [payDialog, setPayDialog] = useState<{
+		orderNo: string;
+		codeUrl: string;
+		channel: "wechat" | "alipay";
+		amount: number;
+		title: string;
+	} | null>(null);
 
 	const canManage =
 		user.role === "admin" ||
 		user.role === "academic_head" ||
 		user.role === "teacher";
+
+	// 加载支付方式
+	useEffect(() => {
+		api
+			.get<PaymentMethodsResponse>("/payments/methods")
+			.then(setPayMethods)
+			.catch(() => setPayMethods({ mock: true, wechat: false, alipay: false }));
+	}, []);
+
+	async function handleConfirmPay(
+		course: Course,
+		channel: "wechat" | "alipay",
+	) {
+		try {
+			const res = await api.post<{ order: Order; codeUrl: string }>(
+				"/payments/orders",
+				{
+					payableType: "course",
+					payableRef: { courseId: course.id },
+					channel,
+					studentId: user.id,
+				},
+			);
+			setPickerFor(null);
+			setPayDialog({
+				orderNo: res.order.orderNo,
+				codeUrl: res.codeUrl,
+				channel,
+				amount: res.order.amount,
+				title: res.order.title,
+			});
+		} catch (err) {
+			console.error("[buy] 下单失败:", err);
+			alert("下单失败,请稍后重试");
+		}
+	}
 
 	const reload = () => {
 		setLoading(true);
@@ -217,7 +268,9 @@ export function CourseList({ user, navigate }: CourseListProps) {
 								<CourseCard
 									key={c.id}
 									course={c}
+									user={user}
 									onClick={() => navigate(`/courses/${c.id}`)}
+									onBuy={(course) => setPickerFor(course)}
 								/>
 							))}
 						</div>
@@ -244,6 +297,33 @@ export function CourseList({ user, navigate }: CourseListProps) {
 					/>
 				</>
 			)}
+
+			{pickerFor && (
+				<ChannelPicker
+					open={true}
+					amount={pickerFor.price}
+					title={pickerFor.title}
+					onClose={() => setPickerFor(null)}
+					onConfirm={(channel) => handleConfirmPay(pickerFor, channel)}
+				/>
+			)}
+
+			{payDialog && (
+				<PaymentDialog
+					open={true}
+					orderNo={payDialog.orderNo}
+					codeUrl={payDialog.codeUrl}
+					channel={payDialog.channel}
+					amount={payDialog.amount}
+					title={payDialog.title}
+					mock={payMethods?.mock ?? true}
+					onClose={() => setPayDialog(null)}
+					onSuccess={() => {
+						setPayDialog(null);
+						reload();
+					}}
+				/>
+			)}
 		</PageContainer>
 	);
 }
@@ -268,11 +348,16 @@ async function downloadTemplate(format: "json" | "md" | "txt" | "xlsx") {
 
 function CourseCard({
 	course,
+	user,
 	onClick,
+	onBuy,
 }: {
 	course: Course;
+	user: User;
 	onClick: () => void;
+	onBuy: (course: Course) => void;
 }) {
+	const isStudent = user.role === "student";
 	return (
 		<button
 			type="button"
@@ -308,6 +393,22 @@ function CourseCard({
 					</span>
 					<span>{course.totalUnits} 节</span>
 				</div>
+				{isStudent && (
+					<div className="mt-2 flex items-center justify-between border-t border-border pt-3">
+						<span className="font-serif text-lg font-semibold text-status-active">
+							¥{course.price}
+						</span>
+						<Button
+							size="sm"
+							onClick={(e) => {
+								e.stopPropagation();
+								onBuy(course);
+							}}
+						>
+							立即购买
+						</Button>
+					</div>
+				)}
 			</div>
 		</button>
 	);

@@ -1,8 +1,15 @@
 import { Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
-import { api, type Payment, type User } from "@/api/client";
+import {
+	api,
+	type Order,
+	type Payment,
+	type PaymentMethodsResponse,
+	type User,
+} from "@/api/client";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -10,6 +17,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { PaymentDialog } from "@/pages/payment/PaymentDialog";
 
 interface PaymentsProps {
 	user: User;
@@ -33,13 +41,33 @@ const STATUS_VARIANT: Record<
 export function Payments({ user }: PaymentsProps) {
 	const [list, setList] = useState<Payment[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [methods, setMethods] = useState<PaymentMethodsResponse | null>(null);
+	const [payChannel, setPayChannel] = useState<"wechat" | "alipay">("wechat");
+	const [payDialog, setPayDialog] = useState<{
+		orderNo: string;
+		codeUrl: string;
+		amount: number;
+		title: string;
+	} | null>(null);
+	const [channelPickerFor, setChannelPickerFor] = useState<Payment | null>(
+		null,
+	);
 
-	useEffect(() => {
+	const reload = () => {
 		api
 			.get<{ payments: Payment[] }>("/parent/payments")
 			.then((res) => setList(res.payments))
 			.catch(() => setList([]))
 			.finally(() => setLoading(false));
+	};
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reload 是稳定引用,只在 mount 时调用一次
+	useEffect(() => {
+		reload();
+		api
+			.get<PaymentMethodsResponse>("/payments/methods")
+			.then(setMethods)
+			.catch(() => setMethods({ mock: true, wechat: false, alipay: false }));
 	}, []);
 
 	const totalPaid = list
@@ -48,6 +76,25 @@ export function Payments({ user }: PaymentsProps) {
 	const totalPending = list
 		.filter((p) => p.status !== "paid")
 		.reduce((sum, p) => sum + p.amount, 0);
+
+	async function handlePay(p: Payment, channel: "wechat" | "alipay") {
+		try {
+			const res = await api.post<{ order: Order; codeUrl: string }>(
+				`/parent/payments/${p.id}/pay`,
+				{ channel },
+			);
+			setChannelPickerFor(null);
+			setPayDialog({
+				orderNo: res.order.orderNo,
+				codeUrl: res.codeUrl,
+				amount: res.order.amount,
+				title: res.order.title,
+			});
+		} catch (err) {
+			console.error("[pay] 创建账单支付订单失败:", err);
+			alert("创建支付订单失败");
+		}
+	}
 
 	return (
 		<PageContainer title="缴费记录" description={`${user.name} 的缴费明细`}>
@@ -107,6 +154,10 @@ export function Payments({ user }: PaymentsProps) {
 										<div className="mt-0.5 text-xs text-text-muted">
 											截止 {p.dueAt.slice(0, 10)}
 											{p.paidAt && ` · 已于 ${p.paidAt.slice(0, 10)} 支付`}
+											{p.method &&
+												` · ${p.method === "wechat" ? "微信支付" : p.method === "alipay" ? "支付宝" : "线下"}`}
+											{p.transactionId &&
+												` · 交易号 ${p.transactionId.slice(0, 16)}...`}
 										</div>
 									</div>
 									<div className="flex items-center gap-3">
@@ -114,6 +165,49 @@ export function Payments({ user }: PaymentsProps) {
 										<Badge variant={STATUS_VARIANT[p.status]}>
 											{STATUS_LABEL[p.status]}
 										</Badge>
+										{p.status !== "paid" &&
+											(channelPickerFor?.id === p.id ? (
+												<div className="flex gap-1">
+													<Button
+														size="sm"
+														variant={
+															payChannel === "wechat" ? "default" : "outline"
+														}
+														onClick={() => setPayChannel("wechat")}
+													>
+														微信
+													</Button>
+													<Button
+														size="sm"
+														variant={
+															payChannel === "alipay" ? "default" : "outline"
+														}
+														onClick={() => setPayChannel("alipay")}
+													>
+														支付宝
+													</Button>
+													<Button
+														size="sm"
+														onClick={() => handlePay(p, payChannel)}
+													>
+														确认
+													</Button>
+													<Button
+														size="sm"
+														variant="ghost"
+														onClick={() => setChannelPickerFor(null)}
+													>
+														取消
+													</Button>
+												</div>
+											) : (
+												<Button
+													size="sm"
+													onClick={() => setChannelPickerFor(p)}
+												>
+													立即支付
+												</Button>
+											))}
 									</div>
 								</li>
 							))}
@@ -121,6 +215,23 @@ export function Payments({ user }: PaymentsProps) {
 					)}
 				</CardContent>
 			</Card>
+
+			{payDialog && (
+				<PaymentDialog
+					open={true}
+					orderNo={payDialog.orderNo}
+					codeUrl={payDialog.codeUrl}
+					channel={payChannel}
+					amount={payDialog.amount}
+					title={payDialog.title}
+					mock={methods?.mock ?? true}
+					onClose={() => setPayDialog(null)}
+					onSuccess={() => {
+						setPayDialog(null);
+						reload();
+					}}
+				/>
+			)}
 		</PageContainer>
 	);
 }

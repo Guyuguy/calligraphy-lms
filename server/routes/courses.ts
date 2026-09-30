@@ -217,6 +217,8 @@ coursesRouter.delete("/:id", requireRoles("admin", "academic_head"), (c) => {
 });
 
 // 选课
+// 学生: 引导走支付流程(POST /api/payments/orders)
+// 教师/教务/管理员: 免费代报名
 coursesRouter.post("/:id/enroll", async (c) => {
 	const parsed = requireAuth(c);
 	if (!parsed) return c.json({ error: "unauthorized", message: "未登录" }, 401);
@@ -224,8 +226,25 @@ coursesRouter.post("/:id/enroll", async (c) => {
 	const course = courses.get(id);
 	if (!course)
 		return c.json({ error: "not_found", message: "课程不存在" }, 404);
-	if (parsed.role !== "student")
-		return c.json({ error: "forbidden", message: "仅学生可选课" }, 403);
+	if (parsed.role === "student") {
+		return c.json(
+			{
+				error: "need_payment",
+				message: "请通过下单流程购买课程(POST /api/payments/orders)",
+				courseId: id,
+				price: course.price,
+			},
+			402,
+		);
+	}
+	if (
+		parsed.role !== "teacher" &&
+		parsed.role !== "academic_head" &&
+		parsed.role !== "admin" &&
+		parsed.role !== "ta"
+	) {
+		return c.json({ error: "forbidden", message: "无权报名" }, 403);
+	}
 	// MVP：仅增加 enrolledCount，不维护选课关系表
 	course.enrolledCount += 1;
 	courses.set(id, course);

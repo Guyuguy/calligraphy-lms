@@ -1,12 +1,18 @@
 import { Hono } from "hono";
 import {
 	evaluations,
+	orders,
 	parentProfiles,
 	payments,
 	studentProfiles,
+	uid,
 	users,
 } from "../db";
-import type { Evaluation } from "../types";
+import { createAlipayPrecreateOrder } from "../payment/alipay";
+import { PAYMENT_CONFIG } from "../payment/config";
+import { mockAlipayQr, mockWechatQr } from "../payment/mock";
+import { createWechatNativeOrder } from "../payment/wechat";
+import type { Evaluation, Order } from "../types";
 import { getStudentSummary } from "./progress";
 import { requireAuth, requireRoles } from "./users";
 
@@ -112,6 +118,93 @@ parentRouter.get("/payments/:id", requireRoles("parent"), (c) => {
 		return c.json({ error: "forbidden", message: "无权查看" }, 403);
 
 	return c.json({ payment: p });
+});
+
+// ============================================================
+// POST /payments/:id/pay — 创建账单支付订单(快捷入口)
+// ============================================================
+
+parentRouter.post("/payments/:id/pay", requireRoles("parent"), async (c) => {
+	const parsed = requireAuth(c);
+	if (!parsed) return c.json({ error: "unauthorized", message: "未登录" }, 401);
+
+	const id = c.req.param("id");
+	const p = payments.get(id);
+	if (!p) return c.json({ error: "not_found", message: "缴费记录不存在" }, 404);
+	if (p.parentId !== parsed.userId)
+		return c.json({ error: "forbidden", message: "无权支付" }, 403);
+	if (p.status === "paid")
+		return c.json({ error: "already_paid", message: "账单已支付" }, 400);
+
+	let body: { channel?: "wechat" | "alipay" };
+	try {
+		body = await c.req.json();
+	} catch {
+		body = {};
+	}
+	if (body.channel !== "wechat" && body.channel !== "alipay") {
+		return c.json(
+			{ error: "invalid_params", message: "channel 必须为 wechat/alipay" },
+			400,
+		);
+	}
+
+	// 重复支付防护
+	const existing = Array.from(orders.values()).find(
+		(o) =>
+			o.userId === parsed.userId &&
+			o.payableType === "manual_bill" &&
+			o.payableRef.paymentId === id &&
+			o.status === "pending",
+	);
+	if (existing) {
+		return c.json({ order: existing, codeUrl: existing.codeUrl ?? "" });
+	}
+
+	// 生成订单号
+	const now = new Date();
+	const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+	const orderNo = `CL${ymd}${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+	const expireAt = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+	const order: Order = {
+		id: uid("order"),
+		orderNo,
+		userId: parsed.userId,
+		studentId: p.studentId,
+		role: "parent",
+		payableType: "manual_bill",
+		payableRef: { paymentId: p.id },
+		amount: p.amount,
+		title: p.title,
+		channel: body.channel,
+		status: "pending",
+		createdAt: now.toISOString(),
+		expireAt: expireAt.toISOString(),
+	};
+
+	// 生成二维码
+	let codeUrl = "";
+	if (PAYMENT_CONFIG.mock) {
+		codeUrl =
+			body.channel === "wechat"
+				? mockWechatQr(orderNo, p.amount)
+				: mockAlipayQr(orderNo, p.amount);
+	} else if (body.channel === "wechat") {
+		const result = await createWechatNativeOrder(
+			orderNo,
+			Math.round(p.amount * 100),
+			p.title,
+		);
+		codeUrl = result.code_url;
+	} else {
+		const result = await createAlipayPrecreateOrder(orderNo, p.amount, p.title);
+		codeUrl = result.qr_code;
+	}
+	order.codeUrl = codeUrl;
+	orders.set(order.id, order);
+
+	return c.json({ order, codeUrl }, 201);
 });
 
 // ============================================================
