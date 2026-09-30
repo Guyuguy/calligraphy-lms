@@ -31,9 +31,34 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { getDayStatus } from "@/utils/holidays";
+import { ScheduleDetailDialog } from "./ScheduleDetailDialog";
 
 const WEEKDAYS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
-const TIME_SLOTS = [9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20];
+const TIME_SLOTS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+
+// 计算本周 7 天的日期 (以今天为锚点,回退到本周周一)
+function getWeekDates(): string[] {
+	const today = new Date();
+	const todayDay = today.getDay(); // 0=Sun..6=Sat
+	// 项目约定 1=Mon..7=Sun,所以周一 = 今天 - (todayDay === 0 ? 6 : todayDay - 1)
+	const mondayOffset = todayDay === 0 ? 6 : todayDay - 1;
+	const monday = new Date(today);
+	monday.setDate(today.getDate() - mondayOffset);
+	const dates: string[] = [];
+	for (let i = 0; i < 7; i++) {
+		const d = new Date(monday);
+		d.setDate(monday.getDate() + i);
+		dates.push(d.toISOString().slice(0, 10));
+	}
+	return dates;
+}
+
+function formatDateLabel(dateStr: string): string {
+	// "MM/DD" 格式
+	const [, m, d] = dateStr.split("-");
+	return `${m}/${d}`;
+}
 
 interface ScheduleViewProps {
 	user: User;
@@ -51,6 +76,7 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 	const [selectedTeacher, setSelectedTeacher] = useState<string>("");
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editTarget, setEditTarget] = useState<Schedule | null>(null);
+	const [detailTarget, setDetailTarget] = useState<Schedule | null>(null);
 
 	const isAdmin = user.role === "admin" || user.role === "academic_head";
 
@@ -103,6 +129,10 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 		}
 		return g;
 	}, [schedules]);
+
+	// 本周 7 天日期 (索引 0=周一 .. 6=周日)
+	const weekDates = useMemo(() => getWeekDates(), []);
+	const todayStr = new Date().toISOString().slice(0, 10);
 
 	// 教师列表（从 courses 里提取）
 	const teacherOptions = useMemo(() => {
@@ -210,11 +240,41 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 							<div className="hidden overflow-x-auto md:block">
 								<div className="grid min-w-[800px] grid-cols-[60px_repeat(7,1fr)] gap-1">
 									<div className="text-center text-xs text-text-muted" />
-									{WEEKDAYS.map((d) => (
-										<div key={d} className="text-center text-sm font-medium">
-											{d}
-										</div>
-									))}
+									{WEEKDAYS.map((d, di) => {
+										const dateStr = weekDates[di];
+										const status = getDayStatus(dateStr);
+										const isToday = dateStr === todayStr;
+										return (
+											<div
+												key={d}
+												className={`text-center text-sm font-medium ${
+													status?.type === "holiday"
+														? "text-status-error"
+														: status?.type === "adjustedWorkday"
+															? "text-status-warning"
+															: ""
+												}`}
+											>
+												<div className="flex flex-col items-center">
+													<span>{d}</span>
+													<span
+														className={`text-xs font-normal ${
+															isToday
+																? "rounded bg-brand px-1 text-white"
+																: "text-text-muted"
+														}`}
+													>
+														{formatDateLabel(dateStr)}
+														{status?.type === "holiday"
+															? ` · ${status.name}`
+															: status?.type === "adjustedWorkday"
+																? ` · ${status.name}`
+																: ""}
+													</span>
+												</div>
+											</div>
+										);
+									})}
 									{TIME_SLOTS.map((hour) => (
 										<div key={hour} className="contents">
 											<div className="flex items-center justify-center text-xs text-text-muted">
@@ -224,16 +284,35 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 												const weekday = di + 1;
 												const key = `${weekday}-${hour}`;
 												const items = grid[key] ?? [];
+												const dateStr = weekDates[di];
+												const status = getDayStatus(dateStr);
+												const cellClass =
+													status?.type === "holiday"
+														? "min-h-16 rounded-md border border-status-error/40 bg-status-error/5 p-1"
+														: status?.type === "adjustedWorkday"
+															? "min-h-16 rounded-md border border-status-warning/40 bg-status-warning/5 p-1"
+															: "min-h-16 rounded-md border border-border bg-surface-1 p-1";
 												return (
 													<div
 														key={key}
-														className="min-h-16 rounded-md border border-border bg-surface-1 p-1"
+														className={cellClass}
+														title={
+															status
+																? status.type === "holiday"
+																	? `${status.name}假期`
+																	: `${status.name}(调休上班)`
+																: undefined
+														}
 													>
 														{items.map((s) => (
 															<ScheduleBlock
 																key={s.id}
 																schedule={s}
-																onClick={() => isAdmin && setEditTarget(s)}
+																onClick={() =>
+																	isAdmin
+																		? setEditTarget(s)
+																		: setDetailTarget(s)
+																}
 															/>
 														))}
 													</div>
@@ -248,28 +327,73 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 							<div className="space-y-4 md:hidden">
 								{WEEKDAYS.map((d, di) => {
 									const weekday = di + 1;
+									const dateStr = weekDates[di];
+									const status = getDayStatus(dateStr);
+									const isToday = dateStr === todayStr;
 									const dayItems = schedules.filter(
 										(s) => s.weekday === weekday,
 									);
-									if (dayItems.length === 0) return null;
+									if (dayItems.length === 0 && !status) return null;
 									return (
 										<div
 											key={d}
-											className="rounded-md border border-border bg-surface-1"
+											className={`rounded-md border bg-surface-1 ${
+												status?.type === "holiday"
+													? "border-status-error/40"
+													: status?.type === "adjustedWorkday"
+														? "border-status-warning/40"
+														: "border-border"
+											}`}
 										>
-											<div className="border-b border-border px-3 py-2 text-sm font-medium">
-												{d}
+											<div className="flex items-center justify-between border-b border-border px-3 py-2 text-sm font-medium">
+												<span
+													className={
+														status?.type === "holiday"
+															? "text-status-error"
+															: status?.type === "adjustedWorkday"
+																? "text-status-warning"
+																: ""
+													}
+												>
+													{d} · {formatDateLabel(dateStr)}
+													{isToday && (
+														<Badge variant="info" className="ml-2">
+															今天
+														</Badge>
+													)}
+												</span>
+												{status && (
+													<Badge
+														variant={
+															status.type === "holiday" ? "danger" : "warning"
+														}
+													>
+														{status.name}
+													</Badge>
+												)}
 											</div>
 											<div className="space-y-1 p-2">
-												{dayItems
-													.sort((a, b) => a.startHour - b.startHour)
-													.map((s) => (
-														<ScheduleBlock
-															key={s.id}
-															schedule={s}
-															onClick={() => isAdmin && setEditTarget(s)}
-														/>
-													))}
+												{dayItems.length === 0 ? (
+													<div className="py-2 text-center text-xs text-text-muted">
+														{status?.type === "holiday"
+															? "节假日休息"
+															: "无课程安排"}
+													</div>
+												) : (
+													dayItems
+														.sort((a, b) => a.startHour - b.startHour)
+														.map((s) => (
+															<ScheduleBlock
+																key={s.id}
+																schedule={s}
+																onClick={() =>
+																	isAdmin
+																		? setEditTarget(s)
+																		: setDetailTarget(s)
+																}
+															/>
+														))
+												)}
 											</div>
 										</div>
 									);
@@ -278,10 +402,18 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 						</>
 					)}
 
-					<div className="mt-4 flex items-center gap-4 text-xs text-text-muted">
+					<div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-text-muted">
 						<span className="flex items-center gap-1">
 							<Calendar className="size-3" />
 							{isAdmin ? "点击课程块可调课" : "点击课程块查看详情"}
+						</span>
+						<span className="flex items-center gap-1">
+							<span className="inline-block size-2.5 rounded-sm border border-status-error/40 bg-status-error/5" />
+							节假日
+						</span>
+						<span className="flex items-center gap-1">
+							<span className="inline-block size-2.5 rounded-sm border border-status-warning/40 bg-status-warning/5" />
+							调休上班
 						</span>
 					</div>
 				</CardContent>
@@ -313,6 +445,11 @@ export function ScheduleView({ user }: ScheduleViewProps) {
 					}}
 				/>
 			)}
+
+			<ScheduleDetailDialog
+				schedule={detailTarget}
+				onClose={() => setDetailTarget(null)}
+			/>
 		</PageContainer>
 	);
 }

@@ -307,24 +307,13 @@ export function TeachingDashboard({ user }: TeachingDashboardProps) {
 				`/teaching/submissions/${selectedVersionId}/review`,
 				payload,
 			);
-			// 从待批改列表移除
-			if (submissions) {
-				setSubmissions({
-					...submissions,
-					count: submissions.count - 1,
-					submissions: submissions.submissions.filter(
-						(s) => s.id !== reviewing.id,
-					),
-				});
-			}
-			// 更新 stats
-			if (stats) {
-				setStats({
-					...stats,
-					pendingReviews: Math.max(0, stats.pendingReviews - 1),
-					reviewedCount: stats.reviewedCount + 1,
-				});
-			}
+			// 重新拉取待批改列表与统计，避免版本切换导致的列表与服务器不一致
+			const [subs, st] = await Promise.all([
+				api.get<SubmissionListResponse>("/teaching/submissions?status=pending"),
+				api.get<TeachingStats>("/teaching/stats"),
+			]);
+			setSubmissions(subs);
+			setStats(st);
 			setReviewing(null);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "批改失败");
